@@ -6,6 +6,12 @@ const POSSystem = () => {
     const [companyName, setCompanyName] = useState('');
     const [isSetupComplete, setIsSetupComplete] = useState(false);
 
+    // PIN Security States
+    const [securityPin, setSecurityPin] = useState('');
+    const [isPinAuthenticated, setIsPinAuthenticated] = useState(false);
+    const [pinInput, setPinInput] = useState('');
+    const [showPinPrompt, setShowPinPrompt] = useState(false);
+
     const [products, setProducts] = useState([]);
     const [cart, setCart] = useState([]);
     const [sales, setSales] = useState([]);
@@ -19,9 +25,12 @@ const POSSystem = () => {
             const savedProducts = localStorage.getItem('pos_products');
             const savedSales = localStorage.getItem('pos_sales');
             const savedSetup = localStorage.getItem('pos_setup_complete');
+            const savedPin = localStorage.getItem('pos_security_pin');
+
             if (savedCompany) setCompanyName(savedCompany);
             if (savedProducts) setProducts(JSON.parse(savedProducts));
             if (savedSales) setSales(JSON.parse(savedSales));
+            if (savedPin) setSecurityPin(savedPin);
             if (savedSetup === 'true') {
                 setIsSetupComplete(true);
                 setView('pos');
@@ -57,6 +66,13 @@ const POSSystem = () => {
     useEffect(() => {
         localStorage.setItem('pos_setup_complete', isSetupComplete.toString());
     }, [isSetupComplete]);
+
+    // Save PIN
+    useEffect(() => {
+        if (securityPin) {
+            localStorage.setItem('pos_security_pin', securityPin);
+        }
+    }, [securityPin]);
 
     // Add to cart
     const addToCart = (product) => {
@@ -109,8 +125,35 @@ const POSSystem = () => {
         }));
 
         setCart([]);
-        alert(`Sale completed! Total: $${total.toFixed(2)}`);
+        alert(`Sale completed! Total: GH₵${total.toFixed(2)}`);
 
+    };
+
+    // PIN Authentication Functions
+    const handlePinSubmit = () => {
+        if (pinInput === securityPin) {
+            setIsPinAuthenticated(true);
+            setShowPinPrompt(false);
+            setPinInput('');
+            setView('inventory');
+        } else {
+            alert('Incorrect PIN! Please try again.');
+            setPinInput('');
+        }
+    };
+
+    const requestInventoryAccess = () => {
+        if (securityPin) {
+            setShowPinPrompt(true);
+            setPinInput('');
+        } else {
+            setView('inventory');
+        }
+    };
+
+    const lockInventory = () => {
+        setIsPinAuthenticated(false);
+        setView('pos');
     };
 
     // Add new product
@@ -179,11 +222,14 @@ const POSSystem = () => {
                 localStorage.removeItem('pos_products');
                 localStorage.removeItem('pos_sales');
                 localStorage.removeItem('pos_setup_complete');
+                localStorage.removeItem('pos_security_pin');
                 setCompanyName('');
                 setProducts([]);
                 setSales([]);
                 setCart([]);
                 setIsSetupComplete(false);
+                setSecurityPin('');
+                setIsPinAuthenticated(false);
                 setView('setup');
 
                 alert('All data has been reset. Starting fresh!');
@@ -244,8 +290,19 @@ const POSSystem = () => {
                                 placeholder="Enter your company name (e.g., Joe's Coffee Shop)"
                                 value={companyName}
                                 onChange={(e) => setCompanyName(e.target.value)}
-                                className="w-full p-3 border-2 border-gray-300 rounded-lg text-lg"
+                                className="w-full p-3 border-2 border-gray-300 rounded-lg text-lg mb-4"
                             />
+
+                            <label className="block mb-2 font-semibold">Security PIN (Optional)</label>
+                            <input
+                                type="password"
+                                placeholder="Enter a 4-6 digit PIN to protect your inventory"
+                                value={securityPin}
+                                onChange={(e) => setSecurityPin(e.target.value)}
+                                className="w-full p-3 border-2 border-gray-300 rounded-lg text-lg"
+                                maxLength="6"
+                            />
+                            <p className="text-sm text-gray-600 mt-1">🔒 This PIN will protect your inventory from unauthorized access</p>
                         </div>
 
                         {/* Products Section */}
@@ -303,7 +360,7 @@ const POSSystem = () => {
                                                 <div>
                                                     <h5 className="font-semibold">{product.name}</h5>
                                                     <p className="text-sm text-gray-600">
-                                                        {product.category} • ${product.price.toFixed(2)} • Stock: {product.stock}
+                                                        {product.category} • GH₵{product.price.toFixed(2)} • Stock: {product.stock}
                                                     </p>
                                                 </div>
                                                 <button
@@ -346,12 +403,18 @@ const POSSystem = () => {
                                 Point of Sale
                             </button>
                             <button
-                                onClick={() => setView('inventory')}
+                                onClick={() => {
+                                    if (securityPin && !isPinAuthenticated) {
+                                        requestInventoryAccess();
+                                    } else {
+                                        setView('inventory');
+                                    }
+                                }}
                                 className={`flex items-center gap-2 px-4 py-2 rounded ${view === 'inventory' ? 'bg-blue-600 text-white' : 'bg-gray-200'
                                     }`}
                             >
                                 <Package size={20} />
-                                Inventory
+                                Inventory {securityPin && <span className="text-xs">🔒</span>}
                             </button>
                             <button
                                 onClick={() => setView('reports')}
@@ -398,12 +461,12 @@ const POSSystem = () => {
                                                 onClick={() => addToCart(product)}
                                                 disabled={product.stock === 0}
                                                 className={`p-4 rounded-lg text-left transition ${product.stock === 0
-                                                        ? 'bg-gray-200 cursor-not-allowed'
-                                                        : 'bg-blue-50 hover:bg-blue-100'
+                                                    ? 'bg-gray-200 cursor-not-allowed'
+                                                    : 'bg-blue-50 hover:bg-blue-100'
                                                     }`}
                                             >
                                                 <h3 className="font-semibold text-lg">{product.name}</h3>
-                                                <p className="text-blue-600 font-bold">${product.price.toFixed(2)}</p>
+                                                <p className="text-blue-600 font-bold">GH₵{product.price.toFixed(2)}</p>
                                                 <p className={`text-sm ${product.stock === 0 ? 'text-red-600' : 'text-gray-600'}`}>
                                                     Stock: {product.stock}
                                                 </p>
@@ -429,7 +492,7 @@ const POSSystem = () => {
                                                     <div className="flex-1">
                                                         <h4 className="font-semibold">{item.name}</h4>
                                                         <p className="text-sm text-gray-600">
-                                                            ${item.price.toFixed(2)} × {item.quantity}
+                                                            GH₵{item.price.toFixed(2)} × {item.quantity}
                                                         </p>
                                                     </div>
                                                     <div className="flex items-center gap-2">
@@ -461,14 +524,14 @@ const POSSystem = () => {
                                     <div className="border-t pt-4">
                                         <div className="flex justify-between text-2xl font-bold mb-4">
                                             <span>Total:</span>
-                                            <span className="text-blue-600">${cartTotal.toFixed(2)}</span>
+                                            <span className="text-blue-600">GH₵{cartTotal.toFixed(2)}</span>
                                         </div>
                                         <button
                                             onClick={completeSale}
                                             disabled={cart.length === 0}
                                             className={`w-full py-3 rounded-lg font-bold text-white ${cart.length === 0
-                                                    ? 'bg-gray-400 cursor-not-allowed'
-                                                    : 'bg-green-600 hover:bg-green-700'
+                                                ? 'bg-gray-400 cursor-not-allowed'
+                                                : 'bg-green-600 hover:bg-green-700'
                                                 }`}
                                         >
                                             Complete Sale
@@ -482,7 +545,17 @@ const POSSystem = () => {
                         {view === 'inventory' && (
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                                 <div className="lg:col-span-2 bg-white rounded-lg shadow p-4">
-                                    <h2 className="text-xl font-bold mb-4">Product Inventory</h2>
+                                    <div className="flex justify-between items-center mb-4">
+                                        <h2 className="text-xl font-bold">Product Inventory</h2>
+                                        {securityPin && isPinAuthenticated && (
+                                            <button
+                                                onClick={lockInventory}
+                                                className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 flex items-center gap-2"
+                                            >
+                                                🔒 Lock Inventory
+                                            </button>
+                                        )}
+                                    </div>
                                     <div className="overflow-x-auto">
                                         <table className="w-full">
                                             <thead className="bg-gray-100">
@@ -499,7 +572,7 @@ const POSSystem = () => {
                                                     <tr key={product.id} className="border-b">
                                                         <td className="p-2">{product.name}</td>
                                                         <td className="p-2">{product.category}</td>
-                                                        <td className="p-2 text-right">${product.price.toFixed(2)}</td>
+                                                        <td className="p-2 text-right">GH₵{product.price.toFixed(2)}</td>
                                                         <td className="p-2 text-right">
                                                             <span className={product.stock < 20 ? 'text-red-600 font-bold' : ''}>
                                                                 {product.stock}
@@ -581,7 +654,7 @@ const POSSystem = () => {
                                         <div className="flex items-center justify-between">
                                             <div>
                                                 <p className="text-gray-600 text-sm">Total Revenue</p>
-                                                <p className="text-3xl font-bold">${totalRevenue.toFixed(2)}</p>
+                                                <p className="text-3xl font-bold">GH₵{totalRevenue.toFixed(2)}</p>
                                             </div>
                                             <DollarSign className="text-green-600" size={40} />
                                         </div>
@@ -623,7 +696,7 @@ const POSSystem = () => {
                                                             <td className="p-2">
                                                                 {sale.items.map(item => `${item.name} (${item.quantity})`).join(', ')}
                                                             </td>
-                                                            <td className="p-2 text-right font-bold">${sale.total.toFixed(2)}</td>
+                                                            <td className="p-2 text-right font-bold">GH₵{sale.total.toFixed(2)}</td>
                                                         </tr>
                                                     ))
                                                 )}
@@ -651,6 +724,24 @@ const POSSystem = () => {
                                     </div>
 
                                     <div className="border-t pt-6">
+                                        <label className="block mb-2 font-semibold">Security PIN</label>
+                                        <input
+                                            type="password"
+                                            value={securityPin}
+                                            onChange={(e) => {
+                                                setSecurityPin(e.target.value);
+                                                setIsPinAuthenticated(false);
+                                            }}
+                                            placeholder="Enter 4-6 digit PIN"
+                                            className="w-full p-3 border rounded-lg"
+                                            maxLength="6"
+                                        />
+                                        <p className="text-sm text-gray-600 mt-1">
+                                            {securityPin ? '🔒 PIN is active - Inventory is protected' : 'No PIN set - Inventory is unprotected'}
+                                        </p>
+                                    </div>
+
+                                    <div className="border-t pt-6">
                                         <h3 className="font-semibold mb-3 text-red-600">Danger Zone</h3>
                                         <button
                                             onClick={resetAllData}
@@ -671,6 +762,47 @@ const POSSystem = () => {
                         )}
                     </div>
                 </>
+            )}
+
+            {/* PIN Prompt Modal */}
+            {showPinPrompt && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg shadow-xl p-8 max-w-md w-full mx-4">
+                        <h2 className="text-2xl font-bold mb-4 text-center">🔒 Enter PIN</h2>
+                        <p className="text-gray-600 mb-6 text-center">Please enter your security PIN to access inventory</p>
+                        <input
+                            type="password"
+                            value={pinInput}
+                            onChange={(e) => setPinInput(e.target.value)}
+                            onKeyPress={(e) => {
+                                if (e.key === 'Enter') {
+                                    handlePinSubmit();
+                                }
+                            }}
+                            placeholder="Enter PIN"
+                            className="w-full p-3 border-2 border-gray-300 rounded-lg text-lg text-center mb-4"
+                            maxLength="6"
+                            autoFocus
+                        />
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => {
+                                    setShowPinPrompt(false);
+                                    setPinInput('');
+                                }}
+                                className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg font-semibold hover:bg-gray-400"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handlePinSubmit}
+                                className="flex-1 bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700"
+                            >
+                                Unlock
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );
