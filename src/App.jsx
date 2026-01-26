@@ -16,7 +16,7 @@ const POSSystem = () => {
     const [cart, setCart] = useState([]);
     const [sales, setSales] = useState([]);
     const [searchTerm, setSearchTerm] = useState('');
-    const [newProduct, setNewProduct] = useState({ name: '', price: '', stock: '', category: '' });
+    const [newProduct, setNewProduct] = useState({ name: '', price: '', stock: '', category: '', cost: '' });
 
     // Load data from storage on mount
     useEffect(() => {
@@ -159,19 +159,20 @@ const POSSystem = () => {
     // Add new product
     const addProduct = () => {
         if (!newProduct.name || !newProduct.price || !newProduct.stock) {
-            alert('Please fill all fields');
+            alert('Please fill all required fields');
             return;
         }
         const product = {
             id: Date.now(),
             name: newProduct.name,
             price: parseFloat(newProduct.price),
+            cost: newProduct.cost ? parseFloat(newProduct.cost) : 0,
             stock: parseInt(newProduct.stock),
             category: newProduct.category || 'General'
         };
 
         setProducts([...products, product]);
-        setNewProduct({ name: '', price: '', stock: '', category: '' });
+        setNewProduct({ name: '', price: '', stock: '', category: '', cost: '' });
 
     };
 
@@ -241,6 +242,12 @@ const POSSystem = () => {
     // Calculate totals
     const cartTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const totalRevenue = sales.reduce((sum, sale) => sum + sale.total, 0);
+    const totalProfit = sales.reduce((sum, sale) => {
+        const saleProfit = sale.items.reduce((itemSum, item) => {
+            return itemSum + ((item.price - (item.cost || 0)) * item.quantity);
+        }, 0);
+        return sum + saleProfit;
+    }, 0);
     const totalSales = sales.length;
 
     // Filter products
@@ -328,7 +335,15 @@ const POSSystem = () => {
                                     />
                                     <input
                                         type="number"
-                                        placeholder="Price * (e.g., 3.50)"
+                                        placeholder="Cost Price * (e.g., 1.50)"
+                                        value={newProduct.cost}
+                                        onChange={(e) => setNewProduct({ ...newProduct, cost: e.target.value })}
+                                        className="p-2 border rounded"
+                                        step="0.01"
+                                    />
+                                    <input
+                                        type="number"
+                                        placeholder="Selling Price * (e.g., 3.50)"
                                         value={newProduct.price}
                                         onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
                                         className="p-2 border rounded"
@@ -360,7 +375,7 @@ const POSSystem = () => {
                                                 <div>
                                                     <h5 className="font-semibold">{product.name}</h5>
                                                     <p className="text-sm text-gray-600">
-                                                        {product.category} • GH₵{product.price.toFixed(2)} • Stock: {product.stock}
+                                                        {product.category} • Cost: GH₵{(product.cost || 0).toFixed(2)} • Price: GH₵{product.price.toFixed(2)} • Profit: GH₵{(product.price - (product.cost || 0)).toFixed(2)} • Stock: {product.stock}
                                                     </p>
                                                 </div>
                                                 <button
@@ -562,7 +577,9 @@ const POSSystem = () => {
                                                 <tr>
                                                     <th className="p-2 text-left">Name</th>
                                                     <th className="p-2 text-left">Category</th>
+                                                    <th className="p-2 text-right">Cost</th>
                                                     <th className="p-2 text-right">Price</th>
+                                                    <th className="p-2 text-right">Profit</th>
                                                     <th className="p-2 text-right">Stock</th>
                                                     <th className="p-2 text-center">Actions</th>
                                                 </tr>
@@ -572,7 +589,9 @@ const POSSystem = () => {
                                                     <tr key={product.id} className="border-b">
                                                         <td className="p-2">{product.name}</td>
                                                         <td className="p-2">{product.category}</td>
+                                                        <td className="p-2 text-right">GH₵{(product.cost || 0).toFixed(2)}</td>
                                                         <td className="p-2 text-right">GH₵{product.price.toFixed(2)}</td>
+                                                        <td className="p-2 text-right font-semibold text-green-600">GH₵{(product.price - (product.cost || 0)).toFixed(2)}</td>
                                                         <td className="p-2 text-right">
                                                             <span className={product.stock < 20 ? 'text-red-600 font-bold' : ''}>
                                                                 {product.stock}
@@ -605,7 +624,15 @@ const POSSystem = () => {
                                         />
                                         <input
                                             type="number"
-                                            placeholder="Price"
+                                            placeholder="Cost Price"
+                                            value={newProduct.cost}
+                                            onChange={(e) => setNewProduct({ ...newProduct, cost: e.target.value })}
+                                            className="w-full p-2 border rounded"
+                                            step="0.01"
+                                        />
+                                        <input
+                                            type="number"
+                                            placeholder="Selling Price"
                                             value={newProduct.price}
                                             onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
                                             className="w-full p-2 border rounded"
@@ -639,7 +666,7 @@ const POSSystem = () => {
                         {/* Reports View */}
                         {view === 'reports' && (
                             <div className="space-y-4">
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                     <div className="bg-white rounded-lg shadow p-6">
                                         <div className="flex items-center justify-between">
                                             <div>
@@ -663,6 +690,16 @@ const POSSystem = () => {
                                     <div className="bg-white rounded-lg shadow p-6">
                                         <div className="flex items-center justify-between">
                                             <div>
+                                                <p className="text-gray-600 text-sm">Total Profit</p>
+                                                <p className="text-3xl font-bold text-green-600">GH₵{totalProfit.toFixed(2)}</p>
+                                            </div>
+                                            <TrendingUp className="text-green-600" size={40} />
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-white rounded-lg shadow p-6">
+                                        <div className="flex items-center justify-between">
+                                            <div>
                                                 <p className="text-gray-600 text-sm">Products</p>
                                                 <p className="text-3xl font-bold">{products.length}</p>
                                             </div>
@@ -679,26 +716,33 @@ const POSSystem = () => {
                                                 <tr>
                                                     <th className="p-2 text-left">Date</th>
                                                     <th className="p-2 text-left">Items</th>
-                                                    <th className="p-2 text-right">Total</th>
+                                                    <th className="p-2 text-right">Revenue</th>
+                                                    <th className="p-2 text-right">Profit</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 {sales.length === 0 ? (
                                                     <tr>
-                                                        <td colSpan="3" className="p-4 text-center text-gray-500">
+                                                        <td colSpan="4" className="p-4 text-center text-gray-500">
                                                             No sales recorded yet
                                                         </td>
                                                     </tr>
                                                 ) : (
-                                                    sales.map(sale => (
-                                                        <tr key={sale.id} className="border-b">
-                                                            <td className="p-2">{sale.date}</td>
-                                                            <td className="p-2">
-                                                                {sale.items.map(item => `${item.name} (${item.quantity})`).join(', ')}
-                                                            </td>
-                                                            <td className="p-2 text-right font-bold">GH₵{sale.total.toFixed(2)}</td>
-                                                        </tr>
-                                                    ))
+                                                    sales.map(sale => {
+                                                        const saleProfit = sale.items.reduce((sum, item) => {
+                                                            return sum + ((item.price - (item.cost || 0)) * item.quantity);
+                                                        }, 0);
+                                                        return (
+                                                            <tr key={sale.id} className="border-b">
+                                                                <td className="p-2">{sale.date}</td>
+                                                                <td className="p-2">
+                                                                    {sale.items.map(item => `${item.name} (${item.quantity})`).join(', ')}
+                                                                </td>
+                                                                <td className="p-2 text-right font-bold">GH₵{sale.total.toFixed(2)}</td>
+                                                                <td className="p-2 text-right font-bold text-green-600">GH₵{saleProfit.toFixed(2)}</td>
+                                                            </tr>
+                                                        );
+                                                    })
                                                 )}
                                             </tbody>
                                         </table>
