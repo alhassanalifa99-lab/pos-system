@@ -8,9 +8,20 @@ const POSSystem = () => {
 
     // PIN Security States
     const [securityPin, setSecurityPin] = useState('');
+    const [managerPin, setManagerPin] = useState('');
     const [isPinAuthenticated, setIsPinAuthenticated] = useState(false);
     const [pinInput, setPinInput] = useState('');
     const [showPinPrompt, setShowPinPrompt] = useState(false);
+    const [pinPurpose, setPinPurpose] = useState(''); // 'inventory' or 'settings'
+
+    // Edit Product States
+    const [editingProduct, setEditingProduct] = useState(null);
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [editFormData, setEditFormData] = useState({});
+
+    // Cart Price Editing States
+    const [editingCartItemId, setEditingCartItemId] = useState(null);
+    const [editingCartPrice, setEditingCartPrice] = useState('');
 
     const [products, setProducts] = useState([]);
     const [cart, setCart] = useState([]);
@@ -26,11 +37,13 @@ const POSSystem = () => {
             const savedSales = localStorage.getItem('pos_sales');
             const savedSetup = localStorage.getItem('pos_setup_complete');
             const savedPin = localStorage.getItem('pos_security_pin');
+            const savedManagerPin = localStorage.getItem('pos_manager_pin');
 
             if (savedCompany) setCompanyName(savedCompany);
             if (savedProducts) setProducts(JSON.parse(savedProducts));
             if (savedSales) setSales(JSON.parse(savedSales));
             if (savedPin) setSecurityPin(savedPin);
+            if (savedManagerPin) setManagerPin(savedManagerPin);
             if (savedSetup === 'true') {
                 setIsSetupComplete(true);
                 setView('pos');
@@ -74,6 +87,13 @@ const POSSystem = () => {
         }
     }, [securityPin]);
 
+    // Save Manager PIN
+    useEffect(() => {
+        if (managerPin) {
+            localStorage.setItem('pos_manager_pin', managerPin);
+        }
+    }, [managerPin]);
+
     // Add to cart
     const addToCart = (product) => {
         const existing = cart.find(item => item.id === product.id);
@@ -82,7 +102,7 @@ const POSSystem = () => {
                 item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
             ));
         } else {
-            setCart([...cart, { ...product, quantity: 1 }]);
+            setCart([...cart, { ...product, quantity: 1, salePrice: product.price }]);
         }
     };
 
@@ -102,10 +122,19 @@ const POSSystem = () => {
         setCart(cart.filter(item => item.id !== id));
     };
 
+    // Update sale price for cart item
+    const updateSalePrice = (id, newPrice) => {
+        setCart(cart.map(item =>
+            item.id === id ? { ...item, salePrice: parseFloat(newPrice) || item.price } : item
+        ));
+        setEditingCartItemId(null);
+        setEditingCartPrice('');
+    };
+
     // Complete sale
     const completeSale = () => {
         if (cart.length === 0) return;
-        const total = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        const total = cart.reduce((sum, item) => sum + ((item.salePrice || item.price) * item.quantity), 0);
         const sale = {
             id: Date.now(),
             items: cart,
@@ -131,19 +160,23 @@ const POSSystem = () => {
 
     // PIN Authentication Functions
     const handlePinSubmit = () => {
-        if (pinInput === securityPin) {
-            setIsPinAuthenticated(true);
-            setShowPinPrompt(false);
-            setPinInput('');
-            setView('inventory');
-        } else {
-            alert('Incorrect PIN! Please try again.');
-            setPinInput('');
+        if (pinPurpose === 'inventory' || pinPurpose === 'reports') {
+            if (pinInput === managerPin) {
+                setIsPinAuthenticated(true);
+                setShowPinPrompt(false);
+                setPinInput('');
+                setView(pinPurpose);
+                setPinPurpose('');
+            } else {
+                alert('Incorrect Manager PIN! Please try again.');
+                setPinInput('');
+            }
         }
     };
 
     const requestInventoryAccess = () => {
-        if (securityPin) {
+        if (managerPin) {
+            setPinPurpose('inventory');
             setShowPinPrompt(true);
             setPinInput('');
         } else {
@@ -181,6 +214,39 @@ const POSSystem = () => {
         if (confirm('Are you sure you want to delete this product?')) {
             setProducts(products.filter(p => p.id !== id));
         }
+    };
+
+    // Edit product - open modal
+    const openEditModal = (product) => {
+        setEditingProduct(product);
+        setEditFormData({ ...product });
+        setShowEditModal(true);
+    };
+
+    // Update product
+    const updateProduct = () => {
+        if (!editFormData.name || !editFormData.price || !editFormData.stock) {
+            alert('Please fill all required fields');
+            return;
+        }
+
+        setProducts(products.map(p => 
+            p.id === editingProduct.id 
+                ? {
+                    ...p,
+                    name: editFormData.name,
+                    price: parseFloat(editFormData.price),
+                    cost: parseFloat(editFormData.cost) || 0,
+                    stock: parseInt(editFormData.stock),
+                    category: editFormData.category
+                }
+                : p
+        ));
+
+        setShowEditModal(false);
+        setEditingProduct(null);
+        setEditFormData({});
+        alert('Product updated successfully!');
     };
 
     // Complete setup
@@ -224,12 +290,14 @@ const POSSystem = () => {
                 localStorage.removeItem('pos_sales');
                 localStorage.removeItem('pos_setup_complete');
                 localStorage.removeItem('pos_security_pin');
+                localStorage.removeItem('pos_manager_pin');
                 setCompanyName('');
                 setProducts([]);
                 setSales([]);
                 setCart([]);
                 setIsSetupComplete(false);
                 setSecurityPin('');
+                setManagerPin('');
                 setIsPinAuthenticated(false);
                 setView('setup');
 
@@ -240,11 +308,11 @@ const POSSystem = () => {
     };
 
     // Calculate totals
-    const cartTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const cartTotal = cart.reduce((sum, item) => sum + ((item.salePrice || item.price) * item.quantity), 0);
     const totalRevenue = sales.reduce((sum, sale) => sum + sale.total, 0);
     const totalProfit = sales.reduce((sum, sale) => {
         const saleProfit = sale.items.reduce((itemSum, item) => {
-            return itemSum + ((item.price - (item.cost || 0)) * item.quantity);
+            return itemSum + (((item.salePrice || item.price) - (item.cost || 0)) * item.quantity);
         }, 0);
         return sum + saleProfit;
     }, 0);
@@ -419,7 +487,7 @@ const POSSystem = () => {
                             </button>
                             <button
                                 onClick={() => {
-                                    if (securityPin && !isPinAuthenticated) {
+                                    if (managerPin && !isPinAuthenticated) {
                                         requestInventoryAccess();
                                     } else {
                                         setView('inventory');
@@ -429,15 +497,25 @@ const POSSystem = () => {
                                     }`}
                             >
                                 <Package size={20} />
-                                Inventory {securityPin && <span className="text-xs">🔒</span>}
+                                Inventory {managerPin && <span className="text-xs">👨‍💼</span>}
                             </button>
                             <button
-                                onClick={() => setView('reports')}
+                                onClick={() => {
+                                    if (managerPin && !isPinAuthenticated) {
+                                        setPinPurpose('reports');
+                                        setShowPinPrompt(true);
+                                        setPinInput('');
+                                    } else if (!managerPin) {
+                                        setView('reports');
+                                    } else {
+                                        setView('reports');
+                                    }
+                                }}
                                 className={`flex items-center gap-2 px-4 py-2 rounded ${view === 'reports' ? 'bg-blue-600 text-white' : 'bg-gray-200'
                                     }`}
                             >
                                 <BarChart size={20} />
-                                Reports
+                                Reports {managerPin && <span className="text-xs">👨‍💼</span>}
                             </button>
                             <button
                                 onClick={() => setView('settings')}
@@ -507,7 +585,46 @@ const POSSystem = () => {
                                                     <div className="flex-1">
                                                         <h4 className="font-semibold">{item.name}</h4>
                                                         <p className="text-sm text-gray-600">
-                                                            GH₵{item.price.toFixed(2)} × {item.quantity}
+                                                            {editingCartItemId === item.id ? (
+                                                                <div className="flex items-center gap-2 mt-1">
+                                                                    <span className="text-xs">GH₵</span>
+                                                                    <input
+                                                                        type="number"
+                                                                        value={editingCartPrice}
+                                                                        onChange={(e) => setEditingCartPrice(e.target.value)}
+                                                                        placeholder="Enter price"
+                                                                        className="w-20 p-1 border rounded text-sm"
+                                                                        step="0.01"
+                                                                        autoFocus
+                                                                    />
+                                                                    <button
+                                                                        onClick={() => updateSalePrice(item.id, editingCartPrice)}
+                                                                        className="bg-green-500 text-white px-2 py-1 rounded text-xs hover:bg-green-600"
+                                                                    >
+                                                                        ✓
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            setEditingCartItemId(null);
+                                                                            setEditingCartPrice('');
+                                                                        }}
+                                                                        className="bg-gray-400 text-white px-2 py-1 rounded text-xs hover:bg-gray-500"
+                                                                    >
+                                                                        ✕
+                                                                    </button>
+                                                                </div>
+                                                            ) : (
+                                                                <span 
+                                                                    onClick={() => {
+                                                                        setEditingCartItemId(item.id);
+                                                                        setEditingCartPrice(item.salePrice || item.price);
+                                                                    }}
+                                                                    className="cursor-pointer hover:text-blue-600 hover:underline"
+                                                                    title="Click to edit price"
+                                                                >
+                                                                    GH₵{(item.salePrice || item.price).toFixed(2)} × {item.quantity}
+                                                                </span>
+                                                            )}
                                                         </p>
                                                     </div>
                                                     <div className="flex items-center gap-2">
@@ -586,7 +703,7 @@ const POSSystem = () => {
                                             </thead>
                                             <tbody>
                                                 {products.map(product => (
-                                                    <tr key={product.id} className="border-b">
+                                                    <tr key={product.id} className="border-b hover:bg-gray-50">
                                                         <td className="p-2">{product.name}</td>
                                                         <td className="p-2">{product.category}</td>
                                                         <td className="p-2 text-right">GH₵{(product.cost || 0).toFixed(2)}</td>
@@ -597,7 +714,13 @@ const POSSystem = () => {
                                                                 {product.stock}
                                                             </span>
                                                         </td>
-                                                        <td className="p-2 text-center">
+                                                        <td className="p-2 text-center space-x-1">
+                                                            <button
+                                                                onClick={() => openEditModal(product)}
+                                                                className="bg-blue-500 text-white px-2 py-1 rounded text-sm hover:bg-blue-600"
+                                                            >
+                                                                Edit
+                                                            </button>
                                                             <button
                                                                 onClick={() => deleteProduct(product.id)}
                                                                 className="bg-red-500 text-white px-2 py-1 rounded text-sm hover:bg-red-600"
@@ -665,61 +788,90 @@ const POSSystem = () => {
 
                         {/* Reports View */}
                         {view === 'reports' && (
-                            <div className="space-y-4">
-                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                                    <div className="bg-white rounded-lg shadow p-6">
-                                        <div className="flex items-center justify-between">
-                                            <div>
-                                                <p className="text-gray-600 text-sm">Total Sales</p>
-                                                <p className="text-3xl font-bold">{totalSales}</p>
-                                            </div>
-                                            <TrendingUp className="text-blue-600" size={40} />
-                                        </div>
+                            <>
+                                {managerPin && !isPinAuthenticated ? (
+                                    <div className="max-w-2xl mx-auto bg-white rounded-lg shadow p-8 text-center">
+                                        <div className="text-6xl mb-4">🔒</div>
+                                        <h2 className="text-2xl font-bold mb-4 text-red-600">Access Denied</h2>
+                                        <p className="text-gray-600 mb-6">Reports are only accessible to managers. Please authenticate with your manager PIN to view reports.</p>
+                                        <button
+                                            onClick={() => {
+                                                setPinPurpose('reports');
+                                                setShowPinPrompt(true);
+                                                setPinInput('');
+                                            }}
+                                            className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700"
+                                        >
+                                            Enter Manager PIN
+                                        </button>
                                     </div>
-
-                                    <div className="bg-white rounded-lg shadow p-6">
-                                        <div className="flex items-center justify-between">
-                                            <div>
-                                                <p className="text-gray-600 text-sm">Total Revenue</p>
-                                                <p className="text-3xl font-bold">GH₵{totalRevenue.toFixed(2)}</p>
-                                            </div>
-                                            <DollarSign className="text-green-600" size={40} />
+                                ) : (
+                                    <div className="space-y-4">
+                                        <div className="flex justify-between items-center mb-4">
+                                            <h2 className="text-xl font-bold">Reports & Analytics</h2>
+                                            {managerPin && isPinAuthenticated && (
+                                                <button
+                                                    onClick={lockInventory}
+                                                    className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 flex items-center gap-2"
+                                                >
+                                                    🔒 Lock Reports
+                                                </button>
+                                            )}
                                         </div>
-                                    </div>
-
-                                    <div className="bg-white rounded-lg shadow p-6">
-                                        <div className="flex items-center justify-between">
-                                            <div>
-                                                <p className="text-gray-600 text-sm">Total Profit</p>
-                                                <p className="text-3xl font-bold text-green-600">GH₵{totalProfit.toFixed(2)}</p>
+                                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                            <div className="bg-white rounded-lg shadow p-6">
+                                                <div className="flex items-center justify-between">
+                                                    <div>
+                                                        <p className="text-gray-600 text-sm">Total Sales</p>
+                                                        <p className="text-3xl font-bold">{totalSales}</p>
+                                                    </div>
+                                                    <TrendingUp className="text-blue-600" size={40} />
+                                                </div>
                                             </div>
-                                            <TrendingUp className="text-green-600" size={40} />
-                                        </div>
-                                    </div>
 
-                                    <div className="bg-white rounded-lg shadow p-6">
-                                        <div className="flex items-center justify-between">
-                                            <div>
-                                                <p className="text-gray-600 text-sm">Products</p>
-                                                <p className="text-3xl font-bold">{products.length}</p>
+                                            <div className="bg-white rounded-lg shadow p-6">
+                                                <div className="flex items-center justify-between">
+                                                    <div>
+                                                        <p className="text-gray-600 text-sm">Total Revenue</p>
+                                                        <p className="text-3xl font-bold">GH₵{totalRevenue.toFixed(2)}</p>
+                                                    </div>
+                                                    <DollarSign className="text-green-600" size={40} />
+                                                </div>
                                             </div>
-                                            <Package className="text-purple-600" size={40} />
-                                        </div>
-                                    </div>
-                                </div>
 
-                                <div className="bg-white rounded-lg shadow p-4">
-                                    <h2 className="text-xl font-bold mb-4">Sales History</h2>
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full">
-                                            <thead className="bg-gray-100">
-                                                <tr>
-                                                    <th className="p-2 text-left">Date</th>
-                                                    <th className="p-2 text-left">Items</th>
-                                                    <th className="p-2 text-right">Revenue</th>
-                                                    <th className="p-2 text-right">Profit</th>
-                                                </tr>
-                                            </thead>
+                                            <div className="bg-white rounded-lg shadow p-6">
+                                                <div className="flex items-center justify-between">
+                                                    <div>
+                                                        <p className="text-gray-600 text-sm">Total Profit</p>
+                                                        <p className="text-3xl font-bold text-green-600">GH₵{totalProfit.toFixed(2)}</p>
+                                                    </div>
+                                                    <TrendingUp className="text-green-600" size={40} />
+                                                </div>
+                                            </div>
+
+                                            <div className="bg-white rounded-lg shadow p-6">
+                                                <div className="flex items-center justify-between">
+                                                    <div>
+                                                        <p className="text-gray-600 text-sm">Products</p>
+                                                        <p className="text-3xl font-bold">{products.length}</p>
+                                                    </div>
+                                                    <Package className="text-purple-600" size={40} />
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-white rounded-lg shadow p-4">
+                                            <h2 className="text-xl font-bold mb-4">Sales History</h2>
+                                            <div className="overflow-x-auto">
+                                                <table className="w-full">
+                                                    <thead className="bg-gray-100">
+                                                        <tr>
+                                                            <th className="p-2 text-left">Date</th>
+                                                            <th className="p-2 text-left">Items</th>
+                                                            <th className="p-2 text-right">Revenue</th>
+                                                            <th className="p-2 text-right">Profit</th>
+                                                        </tr>
+                                                    </thead>
                                             <tbody>
                                                 {sales.length === 0 ? (
                                                     <tr>
@@ -730,13 +882,17 @@ const POSSystem = () => {
                                                 ) : (
                                                     sales.map(sale => {
                                                         const saleProfit = sale.items.reduce((sum, item) => {
-                                                            return sum + ((item.price - (item.cost || 0)) * item.quantity);
+                                                            return sum + (((item.salePrice || item.price) - (item.cost || 0)) * item.quantity);
                                                         }, 0);
                                                         return (
                                                             <tr key={sale.id} className="border-b">
                                                                 <td className="p-2">{sale.date}</td>
                                                                 <td className="p-2">
-                                                                    {sale.items.map(item => `${item.name} (${item.quantity})`).join(', ')}
+                                                                    {sale.items.map(item => {
+                                                                        const displayPrice = item.salePrice || item.price;
+                                                                        const priceNote = item.salePrice && item.salePrice !== item.price ? ` (GH₵${displayPrice.toFixed(2)})` : '';
+                                                                        return `${item.name} (${item.quantity})${priceNote}`;
+                                                                    }).join(', ')}
                                                                 </td>
                                                                 <td className="p-2 text-right font-bold">GH₵{sale.total.toFixed(2)}</td>
                                                                 <td className="p-2 text-right font-bold text-green-600">GH₵{saleProfit.toFixed(2)}</td>
@@ -748,7 +904,9 @@ const POSSystem = () => {
                                         </table>
                                     </div>
                                 </div>
-                            </div>
+                                    </div>
+                                )}
+                            </>
                         )}
 
                         {/* Settings View */}
@@ -768,20 +926,37 @@ const POSSystem = () => {
                                     </div>
 
                                     <div className="border-t pt-6">
-                                        <label className="block mb-2 font-semibold">Security PIN</label>
+                                        <label className="block mb-2 font-semibold">Manager PIN</label>
+                                        <input
+                                            type="password"
+                                            value={managerPin}
+                                            onChange={(e) => {
+                                                setManagerPin(e.target.value);
+                                                setIsPinAuthenticated(false);
+                                            }}
+                                            placeholder="Enter 4-6 digit Manager PIN"
+                                            className="w-full p-3 border rounded-lg"
+                                            maxLength="6"
+                                        />
+                                        <p className="text-sm text-gray-600 mt-1">
+                                            {managerPin ? '👨‍💼 Manager PIN is active - Only managers can access inventory' : 'No Manager PIN set - Inventory is open to all'}
+                                        </p>
+                                    </div>
+
+                                    <div className="border-t pt-6">
+                                        <label className="block mb-2 font-semibold">Security PIN (Legacy)</label>
                                         <input
                                             type="password"
                                             value={securityPin}
                                             onChange={(e) => {
                                                 setSecurityPin(e.target.value);
-                                                setIsPinAuthenticated(false);
                                             }}
-                                            placeholder="Enter 4-6 digit PIN"
+                                            placeholder="Enter 4-6 digit PIN (optional)"
                                             className="w-full p-3 border rounded-lg"
                                             maxLength="6"
                                         />
                                         <p className="text-sm text-gray-600 mt-1">
-                                            {securityPin ? '🔒 PIN is active - Inventory is protected' : 'No PIN set - Inventory is unprotected'}
+                                            This PIN is no longer used. Use Manager PIN instead for inventory access.
                                         </p>
                                     </div>
 
@@ -812,8 +987,11 @@ const POSSystem = () => {
             {showPinPrompt && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                     <div className="bg-white rounded-lg shadow-xl p-8 max-w-md w-full mx-4">
-                        <h2 className="text-2xl font-bold mb-4 text-center">🔒 Enter PIN</h2>
-                        <p className="text-gray-600 mb-6 text-center">Please enter your security PIN to access inventory</p>
+                        <h2 className="text-2xl font-bold mb-4 text-center">�‍💼 Manager PIN Required</h2>
+                        <p className="text-gray-600 mb-6 text-center">
+                            {pinPurpose === 'inventory' && 'Please enter your manager PIN to access inventory management'}
+                            {pinPurpose === 'reports' && 'Please enter your manager PIN to view reports and analytics'}
+                        </p>
                         <input
                             type="password"
                             value={pinInput}
@@ -823,7 +1001,7 @@ const POSSystem = () => {
                                     handlePinSubmit();
                                 }
                             }}
-                            placeholder="Enter PIN"
+                            placeholder="Enter Manager PIN"
                             className="w-full p-3 border-2 border-gray-300 rounded-lg text-lg text-center mb-4"
                             maxLength="6"
                             autoFocus
@@ -843,6 +1021,87 @@ const POSSystem = () => {
                                 className="flex-1 bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700"
                             >
                                 Unlock
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Edit Product Modal */}
+            {showEditModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg shadow-xl p-8 max-w-md w-full mx-4">
+                        <h2 className="text-2xl font-bold mb-6 text-center">Edit Product</h2>
+                        <div className="space-y-3">
+                            <div>
+                                <label className="block text-sm font-semibold mb-1">Product Name</label>
+                                <input
+                                    type="text"
+                                    value={editFormData.name || ''}
+                                    onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                                    className="w-full p-2 border rounded-lg"
+                                    placeholder="Product name"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-semibold mb-1">Category</label>
+                                <input
+                                    type="text"
+                                    value={editFormData.category || ''}
+                                    onChange={(e) => setEditFormData({ ...editFormData, category: e.target.value })}
+                                    className="w-full p-2 border rounded-lg"
+                                    placeholder="Category"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-semibold mb-1">Cost Price</label>
+                                <input
+                                    type="number"
+                                    value={editFormData.cost || ''}
+                                    onChange={(e) => setEditFormData({ ...editFormData, cost: e.target.value })}
+                                    className="w-full p-2 border rounded-lg"
+                                    placeholder="Cost price"
+                                    step="0.01"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-semibold mb-1">Selling Price</label>
+                                <input
+                                    type="number"
+                                    value={editFormData.price || ''}
+                                    onChange={(e) => setEditFormData({ ...editFormData, price: e.target.value })}
+                                    className="w-full p-2 border rounded-lg"
+                                    placeholder="Selling price"
+                                    step="0.01"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-semibold mb-1">Stock Quantity</label>
+                                <input
+                                    type="number"
+                                    value={editFormData.stock || ''}
+                                    onChange={(e) => setEditFormData({ ...editFormData, stock: e.target.value })}
+                                    className="w-full p-2 border rounded-lg"
+                                    placeholder="Stock quantity"
+                                />
+                            </div>
+                        </div>
+                        <div className="flex gap-3 mt-6">
+                            <button
+                                onClick={() => {
+                                    setShowEditModal(false);
+                                    setEditingProduct(null);
+                                    setEditFormData({});
+                                }}
+                                className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg font-semibold hover:bg-gray-400"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={updateProduct}
+                                className="flex-1 bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700"
+                            >
+                                Save Changes
                             </button>
                         </div>
                     </div>
