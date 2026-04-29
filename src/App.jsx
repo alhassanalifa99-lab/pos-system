@@ -6,21 +6,21 @@ const defaultUserForm = { name: '', pin: '' };
 const POSSystem = () => {
     const [view, setView] = useState('setup');
     const [companyName, setCompanyName] = useState('');
+    const [companyId, setCompanyId] = useState('');
     const [isSetupComplete, setIsSetupComplete] = useState(false);
     const [staffUsers, setStaffUsers] = useState([]);
     const [currentUser, setCurrentUser] = useState(null);
     const [loginPin, setLoginPin] = useState('');
+    const [staffCompanyIdInput, setStaffCompanyIdInput] = useState('');
+    const [managerCompanyIdInput, setManagerCompanyIdInput] = useState('');
     const [selectedUserId, setSelectedUserId] = useState('');
     const [newStaffUser, setNewStaffUser] = useState(defaultUserForm);
-    const [authMode, setAuthMode] = useState('login');
+    const [authMode, setAuthMode] = useState('staff-login');
+    const [managerAccessTarget, setManagerAccessTarget] = useState('reports');
 
-    // PIN Security States
+    // Security States
     const [securityPin, setSecurityPin] = useState('');
-    const [managerPin, setManagerPin] = useState('');
     const [isPinAuthenticated, setIsPinAuthenticated] = useState(false);
-    const [pinInput, setPinInput] = useState('');
-    const [showPinPrompt, setShowPinPrompt] = useState(false);
-    const [pinPurpose, setPinPurpose] = useState(''); // 'inventory' or 'settings'
 
     // Edit Product States
     const [editingProduct, setEditingProduct] = useState(null);
@@ -45,15 +45,15 @@ const POSSystem = () => {
             const savedSales = localStorage.getItem('pos_sales');
             const savedSetup = localStorage.getItem('pos_setup_complete');
             const savedPin = localStorage.getItem('pos_security_pin');
-            const savedManagerPin = localStorage.getItem('pos_manager_pin');
+            const savedCompanyId = localStorage.getItem('pos_company_id');
             const savedStaffUsers = localStorage.getItem('pos_staff_users');
             const savedCurrentUser = localStorage.getItem('pos_current_user');
 
             if (savedCompany) setCompanyName(savedCompany);
+            if (savedCompanyId) setCompanyId(savedCompanyId);
             if (savedProducts) setProducts(JSON.parse(savedProducts));
             if (savedSales) setSales(JSON.parse(savedSales));
             if (savedPin) setSecurityPin(savedPin);
-            if (savedManagerPin) setManagerPin(savedManagerPin);
             if (savedStaffUsers) {
                 const parsedUsers = JSON.parse(savedStaffUsers);
                 setStaffUsers(parsedUsers);
@@ -81,6 +81,13 @@ const POSSystem = () => {
         }
     }, [companyName]);
 
+    // Save company ID
+    useEffect(() => {
+        if (companyId) {
+            localStorage.setItem('pos_company_id', companyId);
+        }
+    }, [companyId]);
+
     // Save products
     useEffect(() => {
         if (products.length > 0) {
@@ -107,13 +114,6 @@ const POSSystem = () => {
         }
     }, [securityPin]);
 
-    // Save Manager PIN
-    useEffect(() => {
-        if (managerPin) {
-            localStorage.setItem('pos_manager_pin', managerPin);
-        }
-    }, [managerPin]);
-
     // Save staff users
     useEffect(() => {
         localStorage.setItem('pos_staff_users', JSON.stringify(staffUsers));
@@ -128,7 +128,7 @@ const POSSystem = () => {
         }
 
         if (staffUsers.length === 0) {
-            setAuthMode('signup');
+            setAuthMode('staff-signup');
         }
     }, [staffUsers, selectedUserId]);
 
@@ -212,30 +212,24 @@ const POSSystem = () => {
 
     };
 
-    // PIN Authentication Functions
-    const handlePinSubmit = () => {
-        if (pinPurpose === 'inventory' || pinPurpose === 'reports' || pinPurpose === 'manager-quick-access') {
-            if (pinInput === managerPin) {
-                setIsPinAuthenticated(true);
-                setShowPinPrompt(false);
-                setPinInput('');
-                setView(pinPurpose === 'manager-quick-access' ? 'reports' : pinPurpose);
-                setPinPurpose('');
-            } else {
-                alert('Incorrect Manager PIN! Please try again.');
-                setPinInput('');
-            }
-        }
+    const openManagerLogin = (targetView) => {
+        setManagerAccessTarget(targetView);
+        setManagerCompanyIdInput('');
+        setView('manager-login');
     };
 
-    const requestInventoryAccess = () => {
-        if (managerPin) {
-            setPinPurpose('inventory');
-            setShowPinPrompt(true);
-            setPinInput('');
-        } else {
-            setView('inventory');
+    const handleManagerLogin = () => {
+        if (!managerCompanyIdInput.trim()) {
+            alert('Enter your company ID.');
+            return;
         }
+        if (managerCompanyIdInput.trim().toLowerCase() !== companyId.trim().toLowerCase()) {
+            alert('Incorrect company ID.');
+            return;
+        }
+        setIsPinAuthenticated(true);
+        setManagerCompanyIdInput('');
+        setView(managerAccessTarget);
     };
 
     const lockInventory = () => {
@@ -270,7 +264,7 @@ const POSSystem = () => {
         setNewStaffUser(defaultUserForm);
 
         if (options.switchToLogin) {
-            setAuthMode('login');
+            setAuthMode('staff-login');
         }
     };
 
@@ -294,6 +288,14 @@ const POSSystem = () => {
     };
 
     const handleLogin = () => {
+        if (!staffCompanyIdInput.trim()) {
+            alert('Enter your company ID.');
+            return;
+        }
+        if (staffCompanyIdInput.trim().toLowerCase() !== companyId.trim().toLowerCase()) {
+            alert('Company ID does not match this business.');
+            return;
+        }
         if (!selectedUserId || !loginPin.trim()) {
             alert('Select a user and enter the PIN to continue.');
             return;
@@ -311,6 +313,7 @@ const POSSystem = () => {
 
         setCurrentUser({ id: matchedUser.id, name: matchedUser.name });
         setLoginPin('');
+        setStaffCompanyIdInput('');
         setView('pos');
     };
 
@@ -318,6 +321,7 @@ const POSSystem = () => {
         setCurrentUser(null);
         setCart([]);
         setIsPinAuthenticated(false);
+        setAuthMode('staff-login');
         setView('login');
     };
 
@@ -387,6 +391,10 @@ const POSSystem = () => {
             alert('Please enter your company name');
             return;
         }
+        if (!companyId.trim()) {
+            alert('Please enter a company ID');
+            return;
+        }
         if (products.length === 0) {
             alert('Please add at least one product');
             return;
@@ -403,6 +411,7 @@ const POSSystem = () => {
     const exportData = () => {
         const data = {
             companyName,
+            companyId,
             products,
             sales,
             exportDate: new Date().toLocaleString()
@@ -422,25 +431,28 @@ const POSSystem = () => {
         if (confirm('Are you sure? This will delete ALL data including products, sales, and company info. This cannot be undone!')) {
             if (confirm('Really sure? This is your last chance!')) {
                 localStorage.removeItem('pos_company_name');
+                localStorage.removeItem('pos_company_id');
                 localStorage.removeItem('pos_products');
                 localStorage.removeItem('pos_sales');
                 localStorage.removeItem('pos_setup_complete');
                 localStorage.removeItem('pos_security_pin');
-                localStorage.removeItem('pos_manager_pin');
                 localStorage.removeItem('pos_staff_users');
                 localStorage.removeItem('pos_current_user');
                 setCompanyName('');
+                setCompanyId('');
                 setProducts([]);
                 setSales([]);
                 setCart([]);
                 setIsSetupComplete(false);
                 setSecurityPin('');
-                setManagerPin('');
                 setStaffUsers([]);
                 setCurrentUser(null);
+                setStaffCompanyIdInput('');
+                setManagerCompanyIdInput('');
                 setSelectedUserId('');
                 setLoginPin('');
                 setNewStaffUser(defaultUserForm);
+                setAuthMode('staff-login');
                 setIsPinAuthenticated(false);
                 setView('setup');
 
@@ -519,6 +531,15 @@ const POSSystem = () => {
                                 placeholder="Enter your company name (e.g., Joe's Coffee Shop)"
                                 value={companyName}
                                 onChange={(e) => setCompanyName(e.target.value)}
+                                className="w-full p-3 border-2 border-gray-300 rounded-lg text-lg mb-4"
+                            />
+
+                            <label className="block mb-2 font-semibold">Company ID *</label>
+                            <input
+                                type="text"
+                                placeholder="Enter a unique company ID (e.g., acme-001)"
+                                value={companyId}
+                                onChange={(e) => setCompanyId(e.target.value)}
                                 className="w-full p-3 border-2 border-gray-300 rounded-lg text-lg mb-4"
                             />
 
@@ -680,39 +701,73 @@ const POSSystem = () => {
                         </button>
                     </div>
                 </div>
-            ) : view === 'login' && !currentUser ? (
+            ) : (view === 'manager-login' || (view === 'login' && !currentUser)) ? (
                 <div className="max-w-md mx-auto p-3 sm:p-6">
                     <div className="bg-white rounded-lg shadow-lg p-5 sm:p-8">
-                        <h2 className="text-2xl sm:text-3xl font-bold mb-2 text-center text-blue-600">Staff Login</h2>
+                        <h2 className="text-2xl sm:text-3xl font-bold mb-2 text-center text-blue-600">
+                            {view === 'manager-login' ? 'Manager Login' : 'Staff Login'}
+                        </h2>
                         <p className="text-gray-600 text-center mb-6">
-                            {staffUsers.length === 0
+                            {view === 'manager-login'
+                                ? `Enter your company ID to unlock ${managerAccessTarget}.`
+                                : staffUsers.length === 0
                                 ? `Create your first account to start making sales for ${companyName}.`
                                 : `Log in to start making sales for ${companyName}.`}
                         </p>
 
-                        <div className="grid grid-cols-2 gap-2 mb-5">
-                            <button
-                                onClick={() => setAuthMode('login')}
-                                disabled={staffUsers.length === 0}
-                                className={`py-2 rounded-lg font-semibold ${authMode === 'login'
-                                    ? 'bg-blue-600 text-white'
-                                    : 'bg-gray-200 text-gray-700'
-                                    } ${staffUsers.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            >
-                                Log In
-                            </button>
-                            <button
-                                onClick={() => setAuthMode('signup')}
-                                className={`py-2 rounded-lg font-semibold ${authMode === 'signup'
-                                    ? 'bg-blue-600 text-white'
-                                    : 'bg-gray-200 text-gray-700'
-                                    }`}
-                            >
-                                Sign Up
-                            </button>
-                        </div>
+                        {view !== 'manager-login' && (
+                            <div className="grid grid-cols-2 gap-2 mb-5">
+                                <button
+                                    onClick={() => setAuthMode('staff-login')}
+                                    disabled={staffUsers.length === 0}
+                                    className={`py-2 rounded-lg font-semibold ${authMode === 'staff-login'
+                                        ? 'bg-blue-600 text-white'
+                                        : 'bg-gray-200 text-gray-700'
+                                        } ${staffUsers.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                >
+                                    Log In
+                                </button>
+                                <button
+                                    onClick={() => setAuthMode('staff-signup')}
+                                    className={`py-2 rounded-lg font-semibold ${authMode === 'staff-signup'
+                                        ? 'bg-blue-600 text-white'
+                                        : 'bg-gray-200 text-gray-700'
+                                        }`}
+                                >
+                                    Sign Up
+                                </button>
+                            </div>
+                        )}
 
-                        {authMode === 'signup' || staffUsers.length === 0 ? (
+                        {view === 'manager-login' ? (
+                            <>
+                                <label className="block mb-2 font-semibold">Company ID</label>
+                                <input
+                                    type="text"
+                                    placeholder="Enter company ID"
+                                    value={managerCompanyIdInput}
+                                    onChange={(e) => setManagerCompanyIdInput(e.target.value)}
+                                    onKeyPress={(e) => {
+                                        if (e.key === 'Enter') {
+                                            handleManagerLogin();
+                                        }
+                                    }}
+                                    className="w-full p-3 border-2 border-gray-300 rounded-lg text-lg mb-6"
+                                />
+                                <button
+                                    onClick={handleManagerLogin}
+                                    className="w-full bg-gray-800 text-white py-4 rounded-lg font-bold text-lg hover:bg-gray-900"
+                                >
+                                    Unlock Manager Access
+                                </button>
+                                <button
+                                    onClick={() => setView('login')}
+                                    className="w-full mt-3 bg-gray-200 text-gray-800 py-3 rounded-lg font-semibold hover:bg-gray-300"
+                                >
+                                    Back to Staff Login
+                                </button>
+                            </>
+                        ) : authMode === 'staff-signup' || staffUsers.length === 0 ? (
                             <>
                                 <label className="block mb-2 font-semibold">Staff Name</label>
                                 <input
@@ -747,6 +802,15 @@ const POSSystem = () => {
                             </>
                         ) : (
                             <>
+                                <label className="block mb-2 font-semibold">Company ID</label>
+                                <input
+                                    type="text"
+                                    placeholder="Enter company ID"
+                                    value={staffCompanyIdInput}
+                                    onChange={(e) => setStaffCompanyIdInput(e.target.value)}
+                                    className="w-full p-3 border-2 border-gray-300 rounded-lg text-lg mb-4"
+                                />
+
                                 <label className="block mb-2 font-semibold">Staff User</label>
                                 <select
                                     value={selectedUserId}
@@ -782,18 +846,12 @@ const POSSystem = () => {
                                     Log In
                                 </button>
 
-                                {managerPin && (
-                                    <button
-                                        onClick={() => {
-                                            setPinPurpose('manager-quick-access');
-                                            setShowPinPrompt(true);
-                                            setPinInput('');
-                                        }}
-                                        className="w-full mt-3 bg-gray-800 text-white py-3 rounded-lg font-semibold hover:bg-gray-900"
-                                    >
-                                        Manager Quick Access
-                                    </button>
-                                )}
+                                <button
+                                    onClick={() => openManagerLogin('reports')}
+                                    className="w-full mt-3 bg-gray-800 text-white py-3 rounded-lg font-semibold hover:bg-gray-900"
+                                >
+                                    Manager Login
+                                </button>
                             </>
                         )}
                     </div>
@@ -813,8 +871,8 @@ const POSSystem = () => {
                             </button>
                             <button
                                 onClick={() => {
-                                    if (managerPin && !isPinAuthenticated) {
-                                        requestInventoryAccess();
+                                    if (!isPinAuthenticated) {
+                                        openManagerLogin('inventory');
                                     } else {
                                         setView('inventory');
                                     }
@@ -823,16 +881,12 @@ const POSSystem = () => {
                                     }`}
                             >
                                 <Package size={20} />
-                                Inventory {managerPin && <span className="text-xs">👨‍💼</span>}
+                                Inventory <span className="text-xs">👨‍💼</span>
                             </button>
                             <button
                                 onClick={() => {
-                                    if (managerPin && !isPinAuthenticated) {
-                                        setPinPurpose('reports');
-                                        setShowPinPrompt(true);
-                                        setPinInput('');
-                                    } else if (!managerPin) {
-                                        setView('reports');
+                                    if (!isPinAuthenticated) {
+                                        openManagerLogin('reports');
                                     } else {
                                         setView('reports');
                                     }
@@ -841,7 +895,7 @@ const POSSystem = () => {
                                     }`}
                             >
                                 <BarChart size={20} />
-                                Reports {managerPin && <span className="text-xs">👨‍💼</span>}
+                                Reports <span className="text-xs">👨‍💼</span>
                             </button>
                             <button
                                 onClick={() => setView('settings')}
@@ -1115,27 +1169,23 @@ const POSSystem = () => {
                         {/* Reports View */}
                         {view === 'reports' && (
                             <>
-                                {managerPin && !isPinAuthenticated ? (
+                                {!isPinAuthenticated ? (
                                     <div className="max-w-2xl mx-auto bg-white rounded-lg shadow p-5 sm:p-8 text-center">
                                         <div className="text-6xl mb-4">🔒</div>
                                         <h2 className="text-2xl font-bold mb-4 text-red-600">Access Denied</h2>
-                                        <p className="text-gray-600 mb-6">Reports are only accessible to managers. Please authenticate with your manager PIN to view reports.</p>
+                                        <p className="text-gray-600 mb-6">Reports are only accessible to managers. Log in with company ID to continue.</p>
                                         <button
-                                            onClick={() => {
-                                                setPinPurpose('reports');
-                                                setShowPinPrompt(true);
-                                                setPinInput('');
-                                            }}
+                                            onClick={() => openManagerLogin('reports')}
                                             className="bg-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-700"
                                         >
-                                            Enter Manager PIN
+                                            Manager Login
                                         </button>
                                     </div>
                                 ) : (
                                     <div className="space-y-4">
                                         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4">
                                             <h2 className="text-xl font-bold">Reports & Analytics</h2>
-                                            {managerPin && isPinAuthenticated && (
+                                            {isPinAuthenticated && (
                                                 <button
                                                     onClick={lockInventory}
                                                     className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 flex items-center gap-2"
@@ -1253,6 +1303,18 @@ const POSSystem = () => {
                                         <p className="text-sm text-gray-600 mt-1">Changes save automatically</p>
                                     </div>
 
+                                    <div>
+                                        <label className="block mb-2 font-semibold">Company ID</label>
+                                        <input
+                                            type="text"
+                                            value={companyId}
+                                            onChange={(e) => setCompanyId(e.target.value)}
+                                            className="w-full p-3 border rounded-lg"
+                                            placeholder="Unique company ID used for staff and manager login"
+                                        />
+                                        <p className="text-sm text-gray-600 mt-1">Staff and manager must enter this ID before access.</p>
+                                    </div>
+
                                     <div className="border-t pt-6">
                                         <h3 className="font-semibold mb-3">Staff Logins</h3>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
@@ -1297,24 +1359,6 @@ const POSSystem = () => {
                                     </div>
 
                                     <div className="border-t pt-6">
-                                        <label className="block mb-2 font-semibold">Manager PIN</label>
-                                        <input
-                                            type="password"
-                                            value={managerPin}
-                                            onChange={(e) => {
-                                                setManagerPin(e.target.value);
-                                                setIsPinAuthenticated(false);
-                                            }}
-                                            placeholder="Enter 4-6 digit Manager PIN"
-                                            className="w-full p-3 border rounded-lg"
-                                            maxLength="6"
-                                        />
-                                        <p className="text-sm text-gray-600 mt-1">
-                                            {managerPin ? '👨‍💼 Manager PIN is active - Only managers can access inventory' : 'No Manager PIN set - Inventory is open to all'}
-                                        </p>
-                                    </div>
-
-                                    <div className="border-t pt-6">
                                         <label className="block mb-2 font-semibold">Security PIN (Legacy)</label>
                                         <input
                                             type="password"
@@ -1352,50 +1396,6 @@ const POSSystem = () => {
                         )}
                     </div>
                 </>
-            )}
-
-            {/* PIN Prompt Modal */}
-            {showPinPrompt && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3">
-                    <div className="bg-white rounded-lg shadow-xl p-5 sm:p-8 max-w-md w-full">
-                        <h2 className="text-2xl font-bold mb-4 text-center">Manager PIN Required</h2>
-                        <p className="text-gray-600 mb-6 text-center">
-                            {pinPurpose === 'inventory' && 'Please enter your manager PIN to access inventory management'}
-                            {pinPurpose === 'reports' && 'Please enter your manager PIN to view reports and analytics'}
-                        </p>
-                        <input
-                            type="password"
-                            value={pinInput}
-                            onChange={(e) => setPinInput(e.target.value)}
-                            onKeyPress={(e) => {
-                                if (e.key === 'Enter') {
-                                    handlePinSubmit();
-                                }
-                            }}
-                            placeholder="Enter Manager PIN"
-                            className="w-full p-3 border-2 border-gray-300 rounded-lg text-lg text-center mb-4"
-                            maxLength="6"
-                            autoFocus
-                        />
-                        <div className="flex flex-col sm:flex-row gap-3">
-                            <button
-                                onClick={() => {
-                                    setShowPinPrompt(false);
-                                    setPinInput('');
-                                }}
-                                className="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg font-semibold hover:bg-gray-400"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handlePinSubmit}
-                                className="flex-1 bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700"
-                            >
-                                Unlock
-                            </button>
-                        </div>
-                    </div>
-                </div>
             )}
 
             {/* Edit Product Modal */}
