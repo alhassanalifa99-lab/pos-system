@@ -248,7 +248,7 @@ const POSSystem = () => {
             alert('Please create a company ID.');
             return;
         }
-        setView('setup');
+        setView(isSetupComplete ? 'login' : 'setup');
     };
 
     const addStaffUser = (options = {}) => {
@@ -526,8 +526,7 @@ const POSSystem = () => {
                 </div>
             </div>
             {/* Setup View */}
-            {!isSetupComplete ? (
-                view === 'manager-signup' ? (
+            {view === 'manager-signup' ? (
                     <div className="max-w-md mx-auto p-3 sm:p-6">
                         <div className="bg-white rounded-lg shadow-lg p-5 sm:p-8">
                             <h2 className="text-2xl sm:text-3xl font-bold mb-2 text-center text-blue-600">Manager Sign Up</h2>
@@ -557,11 +556,11 @@ const POSSystem = () => {
                                 onClick={completeManagerSignup}
                                 className="w-full bg-blue-600 text-white py-4 rounded-lg font-bold text-lg hover:bg-blue-700"
                             >
-                                Continue to Setup
+                                {isSetupComplete ? 'Save & Go to Login' : 'Continue to Setup'}
                             </button>
                         </div>
                     </div>
-                ) : (
+                ) : !isSetupComplete ? (
                 <div className="max-w-4xl mx-auto p-3 sm:p-6">
                     <div className="bg-white rounded-lg shadow-lg p-4 sm:p-8">
                         <h2 className="text-2xl sm:text-3xl font-bold mb-6 text-center text-blue-600">Welcome! Let's Set Up Your POS</h2>
@@ -750,7 +749,7 @@ const POSSystem = () => {
                         </button>
                     </div>
                 </div>
-                )
+                
             ) : (view === 'manager-login' || (view === 'login' && !currentUser)) ? (
                 <div className="max-w-md mx-auto p-3 sm:p-6">
                     <div className="bg-white rounded-lg shadow-lg p-5 sm:p-8">
@@ -901,6 +900,12 @@ const POSSystem = () => {
                                     className="w-full mt-3 bg-gray-800 text-white py-3 rounded-lg font-semibold hover:bg-gray-900"
                                 >
                                     Manager Login
+                                </button>
+                                <button
+                                    onClick={() => setView('manager-signup')}
+                                    className="w-full mt-3 bg-gray-200 text-gray-800 py-3 rounded-lg font-semibold hover:bg-gray-300"
+                                >
+                                    Manager Sign Up / Edit Company ID
                                 </button>
                             </>
                         )}
