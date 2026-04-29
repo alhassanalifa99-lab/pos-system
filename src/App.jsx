@@ -467,30 +467,30 @@ const POSSystem = () => {
     );
 
     return (
-        <div className="min-h-screen bg-gray-100">
+        <div className="min-h-screen bg-gray-100 overflow-x-hidden">
             {/* Header */}
-            <div className="bg-blue-600 text-white p-4 shadow-lg">
-                <div className="flex justify-between items-center">
+            <div className="bg-blue-600 text-white p-3 sm:p-4 shadow-lg">
+                <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
                     <div>
-                        <h1 className="text-2xl font-bold">{companyName || 'POS System'}</h1>
+                        <h1 className="text-xl sm:text-2xl font-bold">{companyName || 'POS System'}</h1>
                         <p className="text-sm opacity-90">
                             Complete Point of Sale Solution
                             {currentUser ? ` - Logged in as ${currentUser.name}` : ''}
                         </p>
                     </div>
                     {isSetupComplete && (
-                        <div className="flex gap-2">
+                        <div className="grid grid-cols-2 sm:flex gap-2">
                             {currentUser && (
                                 <button
                                     onClick={logoutUser}
-                                    className="bg-blue-800 text-white px-3 py-2 rounded hover:bg-blue-900"
+                                    className="bg-blue-800 text-white px-3 py-2 rounded hover:bg-blue-900 text-sm sm:text-base"
                                 >
                                     Log Out
                                 </button>
                             )}
                             <button
                                 onClick={exportData}
-                                className="bg-white text-blue-600 px-3 py-2 rounded flex items-center gap-2 hover:bg-blue-50"
+                                className="bg-white text-blue-600 px-3 py-2 rounded flex items-center justify-center gap-2 hover:bg-blue-50 text-sm sm:text-base"
                             >
                                 <Download size={18} />
                                 Export Data
@@ -501,9 +501,9 @@ const POSSystem = () => {
             </div>
             {/* Setup View */}
             {!isSetupComplete ? (
-                <div className="max-w-4xl mx-auto p-6">
-                    <div className="bg-white rounded-lg shadow-lg p-8">
-                        <h2 className="text-3xl font-bold mb-6 text-center text-blue-600">Welcome! Let's Set Up Your POS</h2>
+                <div className="max-w-4xl mx-auto p-3 sm:p-6">
+                    <div className="bg-white rounded-lg shadow-lg p-4 sm:p-8">
+                        <h2 className="text-2xl sm:text-3xl font-bold mb-6 text-center text-blue-600">Welcome! Let's Set Up Your POS</h2>
 
                         <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
                             <p className="text-green-800 font-semibold">✓ All your data will be saved automatically!</p>
@@ -569,14 +569,14 @@ const POSSystem = () => {
                             {staffUsers.length > 0 ? (
                                 <div className="space-y-2">
                                     {staffUsers.map(user => (
-                                        <div key={user.id} className="bg-white p-3 rounded border flex justify-between items-center">
+                                        <div key={user.id} className="bg-white p-3 rounded border flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
                                             <div>
                                                 <h5 className="font-semibold">{user.name}</h5>
                                                 <p className="text-sm text-gray-600">Can log in and make sales</p>
                                             </div>
                                             <button
                                                 onClick={() => deleteStaffUser(user.id)}
-                                                className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
+                                                className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 self-start sm:self-auto"
                                             >
                                                 Delete
                                             </button>
@@ -647,7 +647,7 @@ const POSSystem = () => {
                                     <h4 className="font-semibold mb-3">Your Products ({products.length}):</h4>
                                     <div className="space-y-2 max-h-96 overflow-y-auto">
                                         {products.map(product => (
-                                            <div key={product.id} className="bg-white p-3 rounded border flex justify-between items-center">
+                                            <div key={product.id} className="bg-white p-3 rounded border flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
                                                 <div>
                                                     <h5 className="font-semibold">{product.name}</h5>
                                                     <p className="text-sm text-gray-600">
@@ -656,7 +656,7 @@ const POSSystem = () => {
                                                 </div>
                                                 <button
                                                     onClick={() => deleteProduct(product.id)}
-                                                    className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
+                                                    className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 self-start sm:self-auto"
                                                 >
                                                     Delete
                                                 </button>
@@ -681,9 +681,9 @@ const POSSystem = () => {
                     </div>
                 </div>
             ) : view === 'login' && !currentUser ? (
-                <div className="max-w-md mx-auto p-6">
-                    <div className="bg-white rounded-lg shadow-lg p-8">
-                        <h2 className="text-3xl font-bold mb-2 text-center text-blue-600">Staff Login</h2>
+                <div className="max-w-md mx-auto p-3 sm:p-6">
+                    <div className="bg-white rounded-lg shadow-lg p-5 sm:p-8">
+                        <h2 className="text-2xl sm:text-3xl font-bold mb-2 text-center text-blue-600">Staff Login</h2>
                         <p className="text-gray-600 text-center mb-6">
                             {staffUsers.length === 0
                                 ? `Create your first account to start making sales for ${companyName}.`
@@ -802,10 +802,10 @@ const POSSystem = () => {
                 <>
                     {/* Navigation */}
                     <div className="bg-white shadow-md">
-                        <div className="flex gap-2 p-2">
+                        <div className="grid grid-cols-2 sm:flex gap-2 p-2">
                             <button
                                 onClick={() => setView('pos')}
-                                className={`flex items-center gap-2 px-4 py-2 rounded ${view === 'pos' ? 'bg-blue-600 text-white' : 'bg-gray-200'
+                                className={`flex items-center justify-center gap-2 px-3 py-2 rounded text-sm sm:text-base ${view === 'pos' ? 'bg-blue-600 text-white' : 'bg-gray-200'
                                     }`}
                             >
                                 <ShoppingCart size={20} />
@@ -819,7 +819,7 @@ const POSSystem = () => {
                                         setView('inventory');
                                     }
                                 }}
-                                className={`flex items-center gap-2 px-4 py-2 rounded ${view === 'inventory' ? 'bg-blue-600 text-white' : 'bg-gray-200'
+                                className={`flex items-center justify-center gap-2 px-3 py-2 rounded text-sm sm:text-base ${view === 'inventory' ? 'bg-blue-600 text-white' : 'bg-gray-200'
                                     }`}
                             >
                                 <Package size={20} />
@@ -837,7 +837,7 @@ const POSSystem = () => {
                                         setView('reports');
                                     }
                                 }}
-                                className={`flex items-center gap-2 px-4 py-2 rounded ${view === 'reports' ? 'bg-blue-600 text-white' : 'bg-gray-200'
+                                className={`flex items-center justify-center gap-2 px-3 py-2 rounded text-sm sm:text-base ${view === 'reports' ? 'bg-blue-600 text-white' : 'bg-gray-200'
                                     }`}
                             >
                                 <BarChart size={20} />
@@ -845,7 +845,7 @@ const POSSystem = () => {
                             </button>
                             <button
                                 onClick={() => setView('settings')}
-                                className={`flex items-center gap-2 px-4 py-2 rounded ${view === 'settings' ? 'bg-blue-600 text-white' : 'bg-gray-200'
+                                className={`flex items-center justify-center gap-2 px-3 py-2 rounded text-sm sm:text-base ${view === 'settings' ? 'bg-blue-600 text-white' : 'bg-gray-200'
                                     }`}
                             >
                                 <Settings size={20} />
@@ -854,7 +854,7 @@ const POSSystem = () => {
                         </div>
                     </div>
 
-                    <div className="p-4">
+                    <div className="p-3 sm:p-4">
                         {/* POS View */}
                         {view === 'pos' && (
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -873,7 +873,7 @@ const POSSystem = () => {
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-[600px] overflow-y-auto">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 max-h-[600px] overflow-y-auto">
                                         {filteredProducts.map(product => (
                                             <button
                                                 key={product.id}
@@ -907,7 +907,7 @@ const POSSystem = () => {
                                             <p className="text-gray-500 text-center py-8">Cart is empty</p>
                                         ) : (
                                             cart.map(item => (
-                                                <div key={item.id} className="bg-gray-50 p-3 rounded flex justify-between items-center">
+                                                <div key={item.id} className="bg-gray-50 p-3 rounded flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
                                                     <div className="flex-1">
                                                         <h4 className="font-semibold">{item.name}</h4>
                                                         <p className="text-sm text-gray-600">
@@ -953,7 +953,7 @@ const POSSystem = () => {
                                                             )}
                                                         </p>
                                                     </div>
-                                                    <div className="flex items-center gap-2">
+                                                    <div className="flex items-center gap-2 self-end sm:self-auto">
                                                         <button
                                                             onClick={() => updateQuantity(item.id, -1)}
                                                             className="bg-gray-300 p-1 rounded hover:bg-gray-400"
@@ -1003,7 +1003,7 @@ const POSSystem = () => {
                         {view === 'inventory' && (
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                                 <div className="lg:col-span-2 bg-white rounded-lg shadow p-4">
-                                    <div className="flex justify-between items-center mb-4">
+                                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4">
                                         <h2 className="text-xl font-bold">Product Inventory</h2>
                                         {securityPin && isPinAuthenticated && (
                                             <button
@@ -1015,7 +1015,7 @@ const POSSystem = () => {
                                         )}
                                     </div>
                                     <div className="overflow-x-auto">
-                                        <table className="w-full">
+                                        <table className="w-full min-w-[700px]">
                                             <thead className="bg-gray-100">
                                                 <tr>
                                                     <th className="p-2 text-left">Name</th>
@@ -1116,7 +1116,7 @@ const POSSystem = () => {
                         {view === 'reports' && (
                             <>
                                 {managerPin && !isPinAuthenticated ? (
-                                    <div className="max-w-2xl mx-auto bg-white rounded-lg shadow p-8 text-center">
+                                    <div className="max-w-2xl mx-auto bg-white rounded-lg shadow p-5 sm:p-8 text-center">
                                         <div className="text-6xl mb-4">🔒</div>
                                         <h2 className="text-2xl font-bold mb-4 text-red-600">Access Denied</h2>
                                         <p className="text-gray-600 mb-6">Reports are only accessible to managers. Please authenticate with your manager PIN to view reports.</p>
@@ -1133,7 +1133,7 @@ const POSSystem = () => {
                                     </div>
                                 ) : (
                                     <div className="space-y-4">
-                                        <div className="flex justify-between items-center mb-4">
+                                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4">
                                             <h2 className="text-xl font-bold">Reports & Analytics</h2>
                                             {managerPin && isPinAuthenticated && (
                                                 <button
@@ -1147,7 +1147,7 @@ const POSSystem = () => {
                                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                             <div className="bg-white rounded-lg shadow p-6">
                                                 <div className="flex items-center justify-between">
-                                                    <div>
+                                                    <div className="min-w-0">
                                                         <p className="text-gray-600 text-sm">Total Sales</p>
                                                         <p className="text-3xl font-bold">{totalSales}</p>
                                                     </div>
@@ -1159,7 +1159,7 @@ const POSSystem = () => {
                                                 <div className="flex items-center justify-between">
                                                     <div>
                                                         <p className="text-gray-600 text-sm">Total Revenue</p>
-                                                        <p className="text-3xl font-bold">GH₵{totalRevenue.toFixed(2)}</p>
+                                                        <p className="text-2xl sm:text-3xl font-bold break-all">GH₵{totalRevenue.toFixed(2)}</p>
                                                     </div>
                                                     <DollarSign className="text-green-600" size={40} />
                                                 </div>
@@ -1169,7 +1169,7 @@ const POSSystem = () => {
                                                 <div className="flex items-center justify-between">
                                                     <div>
                                                         <p className="text-gray-600 text-sm">Total Profit</p>
-                                                        <p className="text-3xl font-bold text-green-600">GH₵{totalProfit.toFixed(2)}</p>
+                                                        <p className="text-2xl sm:text-3xl font-bold text-green-600 break-all">GH₵{totalProfit.toFixed(2)}</p>
                                                     </div>
                                                     <TrendingUp className="text-green-600" size={40} />
                                                 </div>
@@ -1189,7 +1189,7 @@ const POSSystem = () => {
                                         <div className="bg-white rounded-lg shadow p-4">
                                             <h2 className="text-xl font-bold mb-4">Sales History</h2>
                                             <div className="overflow-x-auto">
-                                                <table className="w-full">
+                                                <table className="w-full min-w-[760px]">
                                                     <thead className="bg-gray-100">
                                                         <tr>
                                                             <th className="p-2 text-left">Date</th>
@@ -1239,7 +1239,7 @@ const POSSystem = () => {
 
                         {/* Settings View */}
                         {view === 'settings' && (
-                            <div className="max-w-2xl mx-auto bg-white rounded-lg shadow p-6">
+                            <div className="max-w-2xl mx-auto bg-white rounded-lg shadow p-4 sm:p-6">
                                 <h2 className="text-xl font-bold mb-4">Settings</h2>
                                 <div className="space-y-6">
                                     <div>
@@ -1280,7 +1280,7 @@ const POSSystem = () => {
                                         </button>
                                         <div className="space-y-2 mt-4">
                                             {staffUsers.map(user => (
-                                                <div key={user.id} className="flex items-center justify-between bg-gray-50 border rounded-lg p-3">
+                                                <div key={user.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 bg-gray-50 border rounded-lg p-3">
                                                     <div>
                                                         <p className="font-semibold">{user.name}</p>
                                                         <p className="text-sm text-gray-600">Login enabled for sales</p>
@@ -1356,8 +1356,8 @@ const POSSystem = () => {
 
             {/* PIN Prompt Modal */}
             {showPinPrompt && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-lg shadow-xl p-8 max-w-md w-full mx-4">
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3">
+                    <div className="bg-white rounded-lg shadow-xl p-5 sm:p-8 max-w-md w-full">
                         <h2 className="text-2xl font-bold mb-4 text-center">Manager PIN Required</h2>
                         <p className="text-gray-600 mb-6 text-center">
                             {pinPurpose === 'inventory' && 'Please enter your manager PIN to access inventory management'}
@@ -1377,7 +1377,7 @@ const POSSystem = () => {
                             maxLength="6"
                             autoFocus
                         />
-                        <div className="flex gap-3">
+                        <div className="flex flex-col sm:flex-row gap-3">
                             <button
                                 onClick={() => {
                                     setShowPinPrompt(false);
@@ -1400,8 +1400,8 @@ const POSSystem = () => {
 
             {/* Edit Product Modal */}
             {showEditModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-lg shadow-xl p-8 max-w-md w-full mx-4">
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-3">
+                    <div className="bg-white rounded-lg shadow-xl p-5 sm:p-8 max-w-md w-full max-h-[92vh] overflow-y-auto">
                         <h2 className="text-2xl font-bold mb-6 text-center">Edit Product</h2>
                         <div className="space-y-3">
                             <div>
@@ -1457,7 +1457,7 @@ const POSSystem = () => {
                                 />
                             </div>
                         </div>
-                        <div className="flex gap-3 mt-6">
+                        <div className="flex flex-col sm:flex-row gap-3 mt-6">
                             <button
                                 onClick={() => {
                                     setShowEditModal(false);
