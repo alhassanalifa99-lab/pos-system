@@ -12,6 +12,7 @@ const POSSystem = () => {
     const [loginPin, setLoginPin] = useState('');
     const [selectedUserId, setSelectedUserId] = useState('');
     const [newStaffUser, setNewStaffUser] = useState(defaultUserForm);
+    const [authMode, setAuthMode] = useState('login');
 
     // PIN Security States
     const [securityPin, setSecurityPin] = useState('');
@@ -124,6 +125,10 @@ const POSSystem = () => {
             }
         } else if (selectedUserId) {
             setSelectedUserId('');
+        }
+
+        if (staffUsers.length === 0) {
+            setAuthMode('signup');
         }
     }, [staffUsers, selectedUserId]);
 
@@ -238,7 +243,7 @@ const POSSystem = () => {
         setView('pos');
     };
 
-    const addStaffUser = () => {
+    const addStaffUser = (options = {}) => {
         if (!newStaffUser.name.trim() || !newStaffUser.pin.trim()) {
             alert('Please enter a staff name and PIN.');
             return;
@@ -261,7 +266,12 @@ const POSSystem = () => {
         };
 
         setStaffUsers([...staffUsers, user]);
+        setSelectedUserId(user.id.toString());
         setNewStaffUser(defaultUserForm);
+
+        if (options.switchToLogin) {
+            setAuthMode('login');
+        }
     };
 
     const deleteStaffUser = (id) => {
@@ -675,13 +685,66 @@ const POSSystem = () => {
                     <div className="bg-white rounded-lg shadow-lg p-8">
                         <h2 className="text-3xl font-bold mb-2 text-center text-blue-600">Staff Login</h2>
                         <p className="text-gray-600 text-center mb-6">
-                            Select your account and enter your PIN to start making sales for {companyName}.
+                            {staffUsers.length === 0
+                                ? `Create your first account to start making sales for ${companyName}.`
+                                : `Log in to start making sales for ${companyName}.`}
                         </p>
 
-                        {staffUsers.length === 0 ? (
-                            <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-center">
-                                No staff users found. Open settings after setup or reset the app to create users again.
-                            </div>
+                        <div className="grid grid-cols-2 gap-2 mb-5">
+                            <button
+                                onClick={() => setAuthMode('login')}
+                                disabled={staffUsers.length === 0}
+                                className={`py-2 rounded-lg font-semibold ${authMode === 'login'
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-gray-200 text-gray-700'
+                                    } ${staffUsers.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                                Log In
+                            </button>
+                            <button
+                                onClick={() => setAuthMode('signup')}
+                                className={`py-2 rounded-lg font-semibold ${authMode === 'signup'
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-gray-200 text-gray-700'
+                                    }`}
+                            >
+                                Sign Up
+                            </button>
+                        </div>
+
+                        {authMode === 'signup' || staffUsers.length === 0 ? (
+                            <>
+                                <label className="block mb-2 font-semibold">Staff Name</label>
+                                <input
+                                    type="text"
+                                    placeholder="Enter your name"
+                                    value={newStaffUser.name}
+                                    onChange={(e) => setNewStaffUser({ ...newStaffUser, name: e.target.value })}
+                                    className="w-full p-3 border-2 border-gray-300 rounded-lg text-lg mb-4"
+                                />
+
+                                <label className="block mb-2 font-semibold">Create PIN</label>
+                                <input
+                                    type="password"
+                                    placeholder="Create your PIN"
+                                    value={newStaffUser.pin}
+                                    onChange={(e) => setNewStaffUser({ ...newStaffUser, pin: e.target.value })}
+                                    onKeyPress={(e) => {
+                                        if (e.key === 'Enter') {
+                                            addStaffUser({ switchToLogin: true });
+                                        }
+                                    }}
+                                    className="w-full p-3 border-2 border-gray-300 rounded-lg text-lg mb-6"
+                                    maxLength="6"
+                                />
+
+                                <button
+                                    onClick={() => addStaffUser({ switchToLogin: true })}
+                                    className="w-full bg-blue-600 text-white py-4 rounded-lg font-bold text-lg hover:bg-blue-700"
+                                >
+                                    Create Account
+                                </button>
+                            </>
                         ) : (
                             <>
                                 <label className="block mb-2 font-semibold">Staff User</label>
