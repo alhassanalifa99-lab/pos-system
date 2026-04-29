@@ -4,7 +4,7 @@ import { ShoppingCart, Package, DollarSign, TrendingUp, Plus, Minus, Trash2, Sea
 const defaultUserForm = { name: '', pin: '' };
 
 const POSSystem = () => {
-    const [view, setView] = useState('setup');
+    const [view, setView] = useState('manager-signup');
     const [companyName, setCompanyName] = useState('');
     const [companyId, setCompanyId] = useState('');
     const [isSetupComplete, setIsSetupComplete] = useState(false);
@@ -67,6 +67,8 @@ const POSSystem = () => {
             if (savedSetup === 'true') {
                 setIsSetupComplete(true);
                 setView(savedCurrentUser ? 'pos' : 'login');
+            } else {
+                setView(savedCompany && savedCompanyId ? 'setup' : 'manager-signup');
             }
         };
 
@@ -235,6 +237,18 @@ const POSSystem = () => {
     const lockInventory = () => {
         setIsPinAuthenticated(false);
         setView('pos');
+    };
+
+    const completeManagerSignup = () => {
+        if (!companyName.trim()) {
+            alert('Please enter your company name.');
+            return;
+        }
+        if (!companyId.trim()) {
+            alert('Please create a company ID.');
+            return;
+        }
+        setView('setup');
     };
 
     const addStaffUser = (options = {}) => {
@@ -454,7 +468,7 @@ const POSSystem = () => {
                 setNewStaffUser(defaultUserForm);
                 setAuthMode('staff-login');
                 setIsPinAuthenticated(false);
-                setView('setup');
+                setView('manager-signup');
 
                 alert('All data has been reset. Starting fresh!');
             }
@@ -513,6 +527,41 @@ const POSSystem = () => {
             </div>
             {/* Setup View */}
             {!isSetupComplete ? (
+                view === 'manager-signup' ? (
+                    <div className="max-w-md mx-auto p-3 sm:p-6">
+                        <div className="bg-white rounded-lg shadow-lg p-5 sm:p-8">
+                            <h2 className="text-2xl sm:text-3xl font-bold mb-2 text-center text-blue-600">Manager Sign Up</h2>
+                            <p className="text-gray-600 text-center mb-6">
+                                Create your business profile and company ID. Staff will use this company ID to log in to the right business.
+                            </p>
+
+                            <label className="block mb-2 font-semibold">Company Name *</label>
+                            <input
+                                type="text"
+                                placeholder="Enter your company name"
+                                value={companyName}
+                                onChange={(e) => setCompanyName(e.target.value)}
+                                className="w-full p-3 border-2 border-gray-300 rounded-lg text-lg mb-4"
+                            />
+
+                            <label className="block mb-2 font-semibold">Create Company ID *</label>
+                            <input
+                                type="text"
+                                placeholder="e.g. acme-001"
+                                value={companyId}
+                                onChange={(e) => setCompanyId(e.target.value)}
+                                className="w-full p-3 border-2 border-gray-300 rounded-lg text-lg mb-6"
+                            />
+
+                            <button
+                                onClick={completeManagerSignup}
+                                className="w-full bg-blue-600 text-white py-4 rounded-lg font-bold text-lg hover:bg-blue-700"
+                            >
+                                Continue to Setup
+                            </button>
+                        </div>
+                    </div>
+                ) : (
                 <div className="max-w-4xl mx-auto p-3 sm:p-6">
                     <div className="bg-white rounded-lg shadow-lg p-4 sm:p-8">
                         <h2 className="text-2xl sm:text-3xl font-bold mb-6 text-center text-blue-600">Welcome! Let's Set Up Your POS</h2>
@@ -701,6 +750,7 @@ const POSSystem = () => {
                         </button>
                     </div>
                 </div>
+                )
             ) : (view === 'manager-login' || (view === 'login' && !currentUser)) ? (
                 <div className="max-w-md mx-auto p-3 sm:p-6">
                     <div className="bg-white rounded-lg shadow-lg p-5 sm:p-8">
