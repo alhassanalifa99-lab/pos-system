@@ -1,10 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { ShoppingCart, Package, DollarSign, TrendingUp, Plus, Minus, Trash2, Search, BarChart, Settings, Download } from 'lucide-react';
 
+const defaultUserForm = { name: '', pin: '' };
+
 const POSSystem = () => {
     const [view, setView] = useState('setup');
     const [companyName, setCompanyName] = useState('');
     const [isSetupComplete, setIsSetupComplete] = useState(false);
+    const [staffUsers, setStaffUsers] = useState([]);
+    const [currentUser, setCurrentUser] = useState(null);
+    const [loginPin, setLoginPin] = useState('');
+    const [selectedUserId, setSelectedUserId] = useState('');
+    const [newStaffUser, setNewStaffUser] = useState(defaultUserForm);
 
     // PIN Security States
     const [securityPin, setSecurityPin] = useState('');
@@ -38,15 +45,27 @@ const POSSystem = () => {
             const savedSetup = localStorage.getItem('pos_setup_complete');
             const savedPin = localStorage.getItem('pos_security_pin');
             const savedManagerPin = localStorage.getItem('pos_manager_pin');
+            const savedStaffUsers = localStorage.getItem('pos_staff_users');
+            const savedCurrentUser = localStorage.getItem('pos_current_user');
 
             if (savedCompany) setCompanyName(savedCompany);
             if (savedProducts) setProducts(JSON.parse(savedProducts));
             if (savedSales) setSales(JSON.parse(savedSales));
             if (savedPin) setSecurityPin(savedPin);
             if (savedManagerPin) setManagerPin(savedManagerPin);
+            if (savedStaffUsers) {
+                const parsedUsers = JSON.parse(savedStaffUsers);
+                setStaffUsers(parsedUsers);
+                if (parsedUsers.length > 0) {
+                    setSelectedUserId(parsedUsers[0].id.toString());
+                }
+            }
+            if (savedCurrentUser) {
+                setCurrentUser(JSON.parse(savedCurrentUser));
+            }
             if (savedSetup === 'true') {
                 setIsSetupComplete(true);
-                setView('pos');
+                setView(savedCurrentUser ? 'pos' : 'login');
             }
         };
 
@@ -94,6 +113,29 @@ const POSSystem = () => {
         }
     }, [managerPin]);
 
+    // Save staff users
+    useEffect(() => {
+        localStorage.setItem('pos_staff_users', JSON.stringify(staffUsers));
+
+        if (staffUsers.length > 0) {
+            const userExists = staffUsers.some(user => user.id.toString() === selectedUserId);
+            if (!selectedUserId || !userExists) {
+                setSelectedUserId(staffUsers[0].id.toString());
+            }
+        } else if (selectedUserId) {
+            setSelectedUserId('');
+        }
+    }, [staffUsers, selectedUserId]);
+
+    // Save current logged-in user
+    useEffect(() => {
+        if (currentUser) {
+            localStorage.setItem('pos_current_user', JSON.stringify(currentUser));
+        } else {
+            localStorage.removeItem('pos_current_user');
+        }
+    }, [currentUser]);
+
     // Add to cart
     const addToCart = (product) => {
         const existing = cart.find(item => item.id === product.id);
@@ -134,12 +176,19 @@ const POSSystem = () => {
     // Complete sale
     const completeSale = () => {
         if (cart.length === 0) return;
+        if (!currentUser) {
+            alert('Please log in before making a sale.');
+            setView('login');
+            return;
+        }
         const total = cart.reduce((sum, item) => sum + ((item.salePrice || item.price) * item.quantity), 0);
         const sale = {
             id: Date.now(),
             items: cart,
             total: total,
-            date: new Date().toLocaleString()
+            date: new Date().toLocaleString(),
+            cashierId: currentUser.id,
+            cashierName: currentUser.name
         };
 
         setSales([sale, ...sales]);
@@ -160,12 +209,12 @@ const POSSystem = () => {
 
     // PIN Authentication Functions
     const handlePinSubmit = () => {
-        if (pinPurpose === 'inventory' || pinPurpose === 'reports') {
+        if (pinPurpose === 'inventory' || pinPurpose === 'reports' || pinPurpose === 'manager-quick-access') {
             if (pinInput === managerPin) {
                 setIsPinAuthenticated(true);
                 setShowPinPrompt(false);
                 setPinInput('');
-                setView(pinPurpose);
+                setView(pinPurpose === 'manager-quick-access' ? 'reports' : pinPurpose);
                 setPinPurpose('');
             } else {
                 alert('Incorrect Manager PIN! Please try again.');
@@ -187,6 +236,79 @@ const POSSystem = () => {
     const lockInventory = () => {
         setIsPinAuthenticated(false);
         setView('pos');
+    };
+
+    const addStaffUser = () => {
+        if (!newStaffUser.name.trim() || !newStaffUser.pin.trim()) {
+            alert('Please enter a staff name and PIN.');
+            return;
+        }
+
+        const normalizedName = newStaffUser.name.trim();
+        const duplicateUser = staffUsers.some(
+            user => user.name.toLowerCase() === normalizedName.toLowerCase()
+        );
+
+        if (duplicateUser) {
+            alert('A staff user with that name already exists.');
+            return;
+        }
+
+        const user = {
+            id: Date.now(),
+            name: normalizedName,
+            pin: newStaffUser.pin.trim()
+        };
+
+        setStaffUsers([...staffUsers, user]);
+        setNewStaffUser(defaultUserForm);
+    };
+
+    const deleteStaffUser = (id) => {
+        if (staffUsers.length === 1) {
+            alert('At least one staff user is required.');
+            return;
+        }
+
+        const userToDelete = staffUsers.find(user => user.id === id);
+        if (!userToDelete) return;
+
+        if (currentUser?.id === id) {
+            alert('Log out this user before deleting the account.');
+            return;
+        }
+
+        if (confirm(`Delete staff user "${userToDelete.name}"?`)) {
+            setStaffUsers(staffUsers.filter(user => user.id !== id));
+        }
+    };
+
+    const handleLogin = () => {
+        if (!selectedUserId || !loginPin.trim()) {
+            alert('Select a user and enter the PIN to continue.');
+            return;
+        }
+
+        const matchedUser = staffUsers.find(
+            user => user.id.toString() === selectedUserId && user.pin === loginPin.trim()
+        );
+
+        if (!matchedUser) {
+            alert('Incorrect user or PIN.');
+            setLoginPin('');
+            return;
+        }
+
+        setCurrentUser({ id: matchedUser.id, name: matchedUser.name });
+        setLoginPin('');
+        setView('pos');
+    };
+
+    const logoutUser = () => {
+        setCurrentUser(null);
+        setCart([]);
+        setIsPinAuthenticated(false);
+        setView('login');
     };
 
     // Add new product
@@ -259,8 +381,12 @@ const POSSystem = () => {
             alert('Please add at least one product');
             return;
         }
+        if (staffUsers.length === 0) {
+            alert('Please add at least one staff login before completing setup.');
+            return;
+        }
         setIsSetupComplete(true);
-        setView('pos');
+        setView('login');
     };
 
     // Export data
@@ -291,6 +417,8 @@ const POSSystem = () => {
                 localStorage.removeItem('pos_setup_complete');
                 localStorage.removeItem('pos_security_pin');
                 localStorage.removeItem('pos_manager_pin');
+                localStorage.removeItem('pos_staff_users');
+                localStorage.removeItem('pos_current_user');
                 setCompanyName('');
                 setProducts([]);
                 setSales([]);
@@ -298,6 +426,11 @@ const POSSystem = () => {
                 setIsSetupComplete(false);
                 setSecurityPin('');
                 setManagerPin('');
+                setStaffUsers([]);
+                setCurrentUser(null);
+                setSelectedUserId('');
+                setLoginPin('');
+                setNewStaffUser(defaultUserForm);
                 setIsPinAuthenticated(false);
                 setView('setup');
 
@@ -330,10 +463,21 @@ const POSSystem = () => {
                 <div className="flex justify-between items-center">
                     <div>
                         <h1 className="text-2xl font-bold">{companyName || 'POS System'}</h1>
-                        <p className="text-sm opacity-90">Complete Point of Sale Solution</p>
+                        <p className="text-sm opacity-90">
+                            Complete Point of Sale Solution
+                            {currentUser ? ` - Logged in as ${currentUser.name}` : ''}
+                        </p>
                     </div>
                     {isSetupComplete && (
                         <div className="flex gap-2">
+                            {currentUser && (
+                                <button
+                                    onClick={logoutUser}
+                                    className="bg-blue-800 text-white px-3 py-2 rounded hover:bg-blue-900"
+                                >
+                                    Log Out
+                                </button>
+                            )}
                             <button
                                 onClick={exportData}
                                 className="bg-white text-blue-600 px-3 py-2 rounded flex items-center gap-2 hover:bg-blue-50"
@@ -380,9 +524,63 @@ const POSSystem = () => {
                             <p className="text-sm text-gray-600 mt-1">🔒 This PIN will protect your inventory from unauthorized access</p>
                         </div>
 
+                        <div className="mb-8 pb-8 border-b">
+                            <h3 className="text-xl font-bold mb-4">Step 2: Staff Login Accounts</h3>
+                            <p className="text-sm text-gray-600 mb-4">
+                                Add each worker who should be able to log in and make sales. Reports and inventory remain protected by the Manager PIN.
+                            </p>
+
+                            <div className="bg-gray-50 p-4 rounded-lg mb-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                                    <input
+                                        type="text"
+                                        placeholder="Staff name *"
+                                        value={newStaffUser.name}
+                                        onChange={(e) => setNewStaffUser({ ...newStaffUser, name: e.target.value })}
+                                        className="p-2 border rounded"
+                                    />
+                                    <input
+                                        type="password"
+                                        placeholder="Staff PIN *"
+                                        value={newStaffUser.pin}
+                                        onChange={(e) => setNewStaffUser({ ...newStaffUser, pin: e.target.value })}
+                                        className="p-2 border rounded"
+                                        maxLength="6"
+                                    />
+                                </div>
+                                <button
+                                    onClick={addStaffUser}
+                                    className="w-full bg-blue-600 text-white py-2 rounded hover:bg-blue-700 font-semibold"
+                                >
+                                    + Add Staff Login
+                                </button>
+                            </div>
+
+                            {staffUsers.length > 0 ? (
+                                <div className="space-y-2">
+                                    {staffUsers.map(user => (
+                                        <div key={user.id} className="bg-white p-3 rounded border flex justify-between items-center">
+                                            <div>
+                                                <h5 className="font-semibold">{user.name}</h5>
+                                                <p className="text-sm text-gray-600">Can log in and make sales</p>
+                                            </div>
+                                            <button
+                                                onClick={() => deleteStaffUser(user.id)}
+                                                className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
+                                            >
+                                                Delete
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-center text-gray-500 py-4">Add at least one staff login to continue.</p>
+                            )}
+                        </div>
+
                         {/* Products Section */}
                         <div className="mb-8">
-                            <h3 className="text-xl font-bold mb-4">Step 2: Add Your Products</h3>
+                            <h3 className="text-xl font-bold mb-4">Step 3: Add Your Products</h3>
 
                             <div className="bg-gray-50 p-4 rounded-lg mb-4">
                                 <h4 className="font-semibold mb-3">Add a New Product:</h4>
@@ -470,6 +668,71 @@ const POSSystem = () => {
                         >
                             Complete Setup & Start Using POS
                         </button>
+                    </div>
+                </div>
+            ) : view === 'login' && !currentUser ? (
+                <div className="max-w-md mx-auto p-6">
+                    <div className="bg-white rounded-lg shadow-lg p-8">
+                        <h2 className="text-3xl font-bold mb-2 text-center text-blue-600">Staff Login</h2>
+                        <p className="text-gray-600 text-center mb-6">
+                            Select your account and enter your PIN to start making sales for {companyName}.
+                        </p>
+
+                        {staffUsers.length === 0 ? (
+                            <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-center">
+                                No staff users found. Open settings after setup or reset the app to create users again.
+                            </div>
+                        ) : (
+                            <>
+                                <label className="block mb-2 font-semibold">Staff User</label>
+                                <select
+                                    value={selectedUserId}
+                                    onChange={(e) => setSelectedUserId(e.target.value)}
+                                    className="w-full p-3 border-2 border-gray-300 rounded-lg text-lg mb-4"
+                                >
+                                    {staffUsers.map(user => (
+                                        <option key={user.id} value={user.id}>
+                                            {user.name}
+                                        </option>
+                                    ))}
+                                </select>
+
+                                <label className="block mb-2 font-semibold">PIN</label>
+                                <input
+                                    type="password"
+                                    placeholder="Enter your PIN"
+                                    value={loginPin}
+                                    onChange={(e) => setLoginPin(e.target.value)}
+                                    onKeyPress={(e) => {
+                                        if (e.key === 'Enter') {
+                                            handleLogin();
+                                        }
+                                    }}
+                                    className="w-full p-3 border-2 border-gray-300 rounded-lg text-lg mb-6"
+                                    maxLength="6"
+                                />
+
+                                <button
+                                    onClick={handleLogin}
+                                    className="w-full bg-blue-600 text-white py-4 rounded-lg font-bold text-lg hover:bg-blue-700"
+                                >
+                                    Log In
+                                </button>
+
+                                {managerPin && (
+                                    <button
+                                        onClick={() => {
+                                            setPinPurpose('manager-quick-access');
+                                            setShowPinPrompt(true);
+                                            setPinInput('');
+                                        }}
+                                        className="w-full mt-3 bg-gray-800 text-white py-3 rounded-lg font-semibold hover:bg-gray-900"
+                                    >
+                                        Manager Quick Access
+                                    </button>
+                                )}
+                            </>
+                        )}
                     </div>
                 </div>
             ) : (
@@ -867,6 +1130,7 @@ const POSSystem = () => {
                                                     <thead className="bg-gray-100">
                                                         <tr>
                                                             <th className="p-2 text-left">Date</th>
+                                                            <th className="p-2 text-left">Cashier</th>
                                                             <th className="p-2 text-left">Items</th>
                                                             <th className="p-2 text-right">Revenue</th>
                                                             <th className="p-2 text-right">Profit</th>
@@ -875,7 +1139,7 @@ const POSSystem = () => {
                                             <tbody>
                                                 {sales.length === 0 ? (
                                                     <tr>
-                                                        <td colSpan="4" className="p-4 text-center text-gray-500">
+                                                        <td colSpan="5" className="p-4 text-center text-gray-500">
                                                             No sales recorded yet
                                                         </td>
                                                     </tr>
@@ -887,6 +1151,7 @@ const POSSystem = () => {
                                                         return (
                                                             <tr key={sale.id} className="border-b">
                                                                 <td className="p-2">{sale.date}</td>
+                                                                <td className="p-2">{sale.cashierName || 'Unknown User'}</td>
                                                                 <td className="p-2">
                                                                     {sale.items.map(item => {
                                                                         const displayPrice = item.salePrice || item.price;
@@ -923,6 +1188,49 @@ const POSSystem = () => {
                                             className="w-full p-3 border rounded-lg"
                                         />
                                         <p className="text-sm text-gray-600 mt-1">Changes save automatically</p>
+                                    </div>
+
+                                    <div className="border-t pt-6">
+                                        <h3 className="font-semibold mb-3">Staff Logins</h3>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                                            <input
+                                                type="text"
+                                                value={newStaffUser.name}
+                                                onChange={(e) => setNewStaffUser({ ...newStaffUser, name: e.target.value })}
+                                                placeholder="Staff name"
+                                                className="w-full p-3 border rounded-lg"
+                                            />
+                                            <input
+                                                type="password"
+                                                value={newStaffUser.pin}
+                                                onChange={(e) => setNewStaffUser({ ...newStaffUser, pin: e.target.value })}
+                                                placeholder="Staff PIN"
+                                                className="w-full p-3 border rounded-lg"
+                                                maxLength="6"
+                                            />
+                                        </div>
+                                        <button
+                                            onClick={addStaffUser}
+                                            className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700"
+                                        >
+                                            Add Staff Login
+                                        </button>
+                                        <div className="space-y-2 mt-4">
+                                            {staffUsers.map(user => (
+                                                <div key={user.id} className="flex items-center justify-between bg-gray-50 border rounded-lg p-3">
+                                                    <div>
+                                                        <p className="font-semibold">{user.name}</p>
+                                                        <p className="text-sm text-gray-600">Login enabled for sales</p>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => deleteStaffUser(user.id)}
+                                                        className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
 
                                     <div className="border-t pt-6">
@@ -987,7 +1295,7 @@ const POSSystem = () => {
             {showPinPrompt && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                     <div className="bg-white rounded-lg shadow-xl p-8 max-w-md w-full mx-4">
-                        <h2 className="text-2xl font-bold mb-4 text-center">�‍💼 Manager PIN Required</h2>
+                        <h2 className="text-2xl font-bold mb-4 text-center">Manager PIN Required</h2>
                         <p className="text-gray-600 mb-6 text-center">
                             {pinPurpose === 'inventory' && 'Please enter your manager PIN to access inventory management'}
                             {pinPurpose === 'reports' && 'Please enter your manager PIN to view reports and analytics'}
