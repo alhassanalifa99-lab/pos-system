@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { ShoppingCart, Package, DollarSign, TrendingUp, Plus, Minus, Trash2, Search, BarChart, Settings, Download } from 'lucide-react';
 
 const defaultUserForm = { name: '', pin: '' };
+const RESET_VERSION_KEY = 'pos_reset_version';
+const RESET_VERSION = '2026-04-29-clean-start';
 
 const POSSystem = () => {
     const [view, setView] = useState('manager-signup');
@@ -40,6 +42,19 @@ const POSSystem = () => {
     // Load data from storage on mount
     useEffect(() => {
         const loadData = () => {
+            const savedResetVersion = localStorage.getItem(RESET_VERSION_KEY);
+            if (savedResetVersion !== RESET_VERSION) {
+                localStorage.removeItem('pos_company_name');
+                localStorage.removeItem('pos_company_id');
+                localStorage.removeItem('pos_products');
+                localStorage.removeItem('pos_sales');
+                localStorage.removeItem('pos_setup_complete');
+                localStorage.removeItem('pos_security_pin');
+                localStorage.removeItem('pos_staff_users');
+                localStorage.removeItem('pos_current_user');
+                localStorage.setItem(RESET_VERSION_KEY, RESET_VERSION);
+            }
+
             const savedCompany = localStorage.getItem('pos_company_name');
             const savedProducts = localStorage.getItem('pos_products');
             const savedSales = localStorage.getItem('pos_sales');
