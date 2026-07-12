@@ -34,6 +34,22 @@ export default async function handler(req, res) {
       return res.status(201).json(company);
     }
 
+    // PUT /api/company  -> update company name and/or manager PIN
+    if (req.method === 'PUT') {
+      const { companyId, companyName, securityPin } = req.body;
+      if (!companyId) return res.status(400).json({ error: 'companyId is required' });
+
+      const [company] = await sql`
+        UPDATE companies
+        SET company_name = COALESCE(${companyName || null}, company_name),
+            security_pin = ${securityPin || null}
+        WHERE company_id = ${companyId}
+        RETURNING company_id, company_name
+      `;
+      if (!company) return res.status(404).json({ error: 'Company not found' });
+      return res.status(200).json(company);
+    }
+
     return res.status(405).json({ error: 'Method not allowed' });
   } catch (err) {
     console.error(err);

@@ -418,7 +418,7 @@ const POSSystem = () => {
         }
     };
 
-    const completeSetup = () => {
+    const completeSetup = async () => {
         if (products.length === 0) {
             alert('Please add at least one product');
             return;
@@ -427,8 +427,19 @@ const POSSystem = () => {
             alert('Please add at least one staff login before completing setup.');
             return;
         }
-        setIsSetupComplete(true);
-        setView('login');
+        setBusy(true);
+        try {
+            await api('/api/company', {
+                method: 'PUT',
+                body: JSON.stringify({ companyId, companyName, securityPin: securityPin || null }),
+            });
+            setIsSetupComplete(true);
+            setView('login');
+        } catch (err) {
+            alert(err.message || 'Could not save your manager PIN. Please try again.');
+        } finally {
+            setBusy(false);
+        }
     };
 
     // Export still works the same way — just pulls from state (which now mirrors the DB) instead of localStorage
@@ -666,8 +677,8 @@ const POSSystem = () => {
                             )}
                         </div>
 
-                        <button onClick={completeSetup} className="w-full bg-blue-600 text-white py-4 rounded-lg font-bold text-lg hover:bg-blue-700">
-                            Complete Setup & Start Using POS
+                        <button onClick={completeSetup} disabled={busy} className="w-full bg-blue-600 text-white py-4 rounded-lg font-bold text-lg hover:bg-blue-700 disabled:opacity-50">
+                            {busy ? 'Saving...' : 'Complete Setup & Start Using POS'}
                         </button>
                     </div>
                 </div>
